@@ -36,7 +36,7 @@ const departmentSchema = new mongoose.Schema({
                 if (!value) return true; // Allow null/undefined manager
                 const Employee = mongoose.model('Employee');
                 const employee = await Employee.findById(value);
-                return employee && employee.role === 'manager'; // Ensure the employee is a manager
+                return employee && employee.role === 'manager','IT Manager','Project Manager','HR Manager','Finance Manager','Sales Manager'; // Ensure the employee is a manager
             },
             message: 'Invalid manager. Manager must be an existing employee with manager role.'
         }

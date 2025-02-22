@@ -119,11 +119,85 @@ const getEmployeeById = catchAsync(async (req, res) => {
 });
 
 /**
+ * Get the next employee ID
+ */
+const getNextEmployeeId = catchAsync(async (req, res) => {
+  try {
+    console.log('Generating next employee ID...');
+    const nextId = await generateEmployeeId();
+    console.log('Generated ID:', nextId);
+    
+    res.status(200).json({
+      status: 'success',
+      data: {
+        employee: {
+          employeeId: nextId
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Error in getNextEmployeeId:', error);
+    throw createError(500, 'Failed to generate employee ID');
+  }
+});
+
+/**
+ * Generate employee ID
+ */
+const generateEmployeeId = async () => {
+  try {
+    console.log('Starting employee ID generation...');
+    // Get all employees and sort by employeeId in descending order
+    const employees = await Employee.find({})
+      .sort({ employeeId: -1 })
+      .limit(1)
+      .lean();
+
+    console.log('Latest employee:', employees[0]);
+
+    if (!employees || employees.length === 0) {
+      console.log('No employees found, starting with EMP001');
+      return 'EMP001';
+    }
+
+    const latestEmployee = employees[0];
+    console.log('Latest employee ID:', latestEmployee.employeeId);
+    
+    // Extract the numeric part
+    const matches = latestEmployee.employeeId.match(/EMP(\d+)/);
+    
+    if (!matches || !matches[1]) {
+      console.log('Invalid ID format, starting with EMP001');
+      return 'EMP001';
+    }
+
+    const currentNumber = parseInt(matches[1], 10);
+    if (isNaN(currentNumber)) {
+      console.log('Invalid number format, starting with EMP001');
+      return 'EMP001';
+    }
+
+    const nextNumber = currentNumber + 1;
+    const paddedNumber = nextNumber.toString().padStart(3, '0');
+    const nextId = `EMP${paddedNumber}`;
+    
+    console.log('Generated next ID:', nextId);
+    return nextId;
+
+  } catch (error) {
+    console.error('Error generating employee ID:', error);
+    throw new Error('Failed to generate employee ID');
+  }
+};
+
+/**
  * Create new employee
  */
 const createEmployee = catchAsync(async (req, res) => {
+  // Generate employee ID first
+  const employeeId = await generateEmployeeId();
+
   const {
-    employeeId,
     firstName,
     lastName,
     email,
@@ -137,12 +211,6 @@ const createEmployee = catchAsync(async (req, res) => {
     address,
     emergencyContact
   } = req.body;
-
-  // Check if employee ID already exists
-  const existingEmployee = await Employee.findOne({ employeeId });
-  if (existingEmployee) {
-    throw createError(400, 'Employee ID already exists');
-  }
 
   // Check if email already exists
   const emailExists = await Employee.findOne({ email });
@@ -163,7 +231,7 @@ const createEmployee = catchAsync(async (req, res) => {
   }
 
   const employee = await Employee.create({
-    employeeId,
+    employeeId, // Auto-generated ID
     firstName,
     lastName,
     email,
@@ -179,9 +247,18 @@ const createEmployee = catchAsync(async (req, res) => {
     createdBy: req.user.id
   });
 
+  // Populate necessary fields before sending response
+  await employee.populate('department', 'name');
+  await employee.populate('position', 'title');
+
   res.status(201).json({
     status: 'success',
-    data: { employee }
+    data: { 
+      employee: {
+        ...employee.toObject(),
+        fullName: `${employee.firstName} ${employee.lastName}`
+      }
+    }
   });
 });
 
@@ -463,5 +540,6 @@ module.exports = {
   updateProfilePicture,
   upload,
   getCurrentEmployee,
-  updateCurrentEmployee
+  updateCurrentEmployee,
+  getNextEmployeeId
 }; 

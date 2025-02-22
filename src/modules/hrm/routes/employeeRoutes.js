@@ -11,8 +11,12 @@ const {
   updateProfilePicture,
   upload,
   getCurrentEmployee,
-  updateCurrentEmployee
+  updateCurrentEmployee,
+  getNextEmployeeId
 } = require('../controllers/employeeController');
+
+// Get next employee ID - Move this route to the top
+router.get('/next-id', auth, getNextEmployeeId);
 
 // Get current employee profile
 router.get('/me', auth, getCurrentEmployee);
