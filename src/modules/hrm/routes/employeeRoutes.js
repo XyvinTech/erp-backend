@@ -24,6 +24,15 @@ router.get('/me', auth, getCurrentEmployee);
 // Update current employee profile
 router.patch('/me', auth, updateCurrentEmployee);
 
+// Update current employee profile picture
+router.post('/me/profile-picture', auth, upload.single('profilePicture'), (req, res, next) => {
+  try {
+    updateProfilePicture(req, res, next);
+  } catch (error) {
+    next(error);
+  }
+});
+
 // Get all employees
 router.get('/', auth, checkPermissions('view_employees'), getAllEmployees);
 

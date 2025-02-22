@@ -413,39 +413,61 @@ const uploadDocument = catchAsync(async (req, res) => {
  * Update employee profile picture
  */
 const updateProfilePicture = catchAsync(async (req, res) => {
-  if (!req.file) {
-    throw new ApiError('Please provide an image file', 400);
-  }
-
-  const employee = await Employee.findById(req.params.id);
-  if (!employee) {
-    throw new ApiError('Employee not found', 404);
-  }
-
-  // Delete old profile picture if exists
-  if (employee.profilePicture) {
-    try {
-      await fs.unlink(path.join(process.cwd(), employee.profilePicture));
-    } catch (error) {
-      console.error('Error deleting old profile picture:', error);
+  try {
+    if (!req.file) {
+      throw new ApiError('Please provide an image file', 400);
     }
-  }
 
-  // Update employee with new profile picture path
-  const profilePicturePath = '/' + req.file.path.replace(/\\/g, '/');
-  employee.profilePicture = profilePicturePath;
-  await employee.save();
+    // Get employee ID from authenticated user
+    const employeeId = req.user.id;
 
-  res.status(200).json({
-    status: 'success',
-    data: {
-      employee: {
-        ...employee.toObject(),
-        profilePicture: profilePicturePath,
-        fullName: `${employee.firstName} ${employee.lastName}`
+    const employee = await Employee.findById(employeeId);
+    if (!employee) {
+      throw new ApiError('Employee not found', 404);
+    }
+
+    // Delete old profile picture if exists
+    if (employee.profilePicture) {
+      try {
+        const oldPath = path.join(process.cwd(), employee.profilePicture.replace(/^\//, ''));
+        if (await fs.access(oldPath).then(() => true).catch(() => false)) {
+          await fs.unlink(oldPath);
+        }
+      } catch (error) {
+        console.error('Error deleting old profile picture:', error);
       }
     }
-  });
+
+    // Update employee with new profile picture path
+    const profilePicturePath = '/' + req.file.path.replace(/\\/g, '/');
+    employee.profilePicture = profilePicturePath;
+    await employee.save();
+
+    // Populate necessary fields
+    await employee.populate('department', 'name');
+    await employee.populate('position', 'title');
+
+    res.status(200).json({
+      status: 'success',
+      data: {
+        employee: {
+          ...employee.toObject(),
+          profilePicture: profilePicturePath,
+          fullName: `${employee.firstName} ${employee.lastName}`
+        }
+      }
+    });
+  } catch (error) {
+    // Delete uploaded file if there was an error
+    if (req.file) {
+      try {
+        await fs.unlink(req.file.path);
+      } catch (unlinkError) {
+        console.error('Error deleting uploaded file:', unlinkError);
+      }
+    }
+    throw error;
+  }
 });
 
 /**
