@@ -69,6 +69,7 @@ const getAllEmployees = catchAsync(async (req, res) => {
           employeeId: emp.employeeId,
           firstName: emp.firstName,
           lastName: emp.lastName,
+          name: `${emp.firstName} ${emp.lastName}`,
           fullName: `${emp.firstName} ${emp.lastName}`,
           email: emp.email,
           phone: emp.phone,

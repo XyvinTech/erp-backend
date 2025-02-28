@@ -11,6 +11,9 @@ const connectDB = require('./config/database');
 // Import routes
 const routes = require('./routes');
 const payrollRoutes = require('./modules/hrm/routes/payrollRoutes');
+const clientRoutes = require('./modules/client/client.routes');
+const projectRoutes = require('./modules/project/project.routes');
+const taskRoutes = require('./modules/project/task.routes');
 
 const app = express();
 
@@ -54,6 +57,9 @@ app.use('/public', (req, res, next) => {
 // Setup API routes
 app.use('/api', routes);
 app.use('/api/hrm/payroll', payrollRoutes);
+app.use('/api/clients', clientRoutes);
+app.use('/api/projects', projectRoutes);
+app.use('/api/tasks', taskRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

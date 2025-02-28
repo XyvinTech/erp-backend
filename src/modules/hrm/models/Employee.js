@@ -124,6 +124,10 @@ const employeeSchema = new mongoose.Schema({
         responsibilities: [String]
     }],
     skills: [String],
+    tasks: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Task'
+    }],
     createdBy: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
