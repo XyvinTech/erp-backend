@@ -20,7 +20,7 @@ const app = express();
 // CORS Configuration
 const corsOptions = {
   origin: function (origin, callback) {
-    const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:3000').split(',').map(o => o.trim());
+    const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:5173').split(',').map(o => o.trim());
     
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
@@ -63,27 +63,34 @@ app.use('/api/tasks', taskRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
+  // Log the full error for debugging
+  console.error('Error details:', {
+    message: err.message,
+    stack: err.stack,
+    status: err.status,
+    statusCode: err.statusCode,
+    path: req.path,
+    method: req.method,
+    body: req.body,
+    query: req.query,
+    user: req.user ? { id: req.user._id, role: req.user.role } : null
+  });
+
   const statusCode = err.statusCode || 500;
   const status = err.status || 'error';
   const message = err.message || 'Internal Server Error';
 
-  // Log error in development
-  if (process.env.NODE_ENV === 'development') {
-    console.error('Error:', {
-      statusCode,
-      status,
-      message,
-      stack: err.stack
-    });
-  }
-
+  // Send error response
   res.status(statusCode).json({
     success: false,
     error: {
       statusCode,
       status,
       message,
-      ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
+      ...(process.env.NODE_ENV === 'development' && { 
+        stack: err.stack,
+        details: err.details || undefined
+      })
     }
   });
 });
@@ -101,7 +108,7 @@ app.use((req, res) => {
 });
 
 // Connect to database and start server
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 3000;
 const HOST = process.env.HOST || 'localhost';
 
 const startServer = async () => {
@@ -113,7 +120,7 @@ const startServer = async () => {
     app.listen(PORT, HOST, () => {
       console.log(`Server running at http://${HOST}:${PORT}`);
       console.log('Environment:', process.env.NODE_ENV);
-      console.log('Allowed Origins:', (process.env.CORS_ORIGIN || 'http://localhost:3000').split(',').map(o => o.trim()));
+      console.log('Allowed Origins:', (process.env.CORS_ORIGIN || 'http://localhost:5173').split(',').map(o => o.trim()));
     });
   } catch (error) {
     console.error('Failed to start server:', error);
