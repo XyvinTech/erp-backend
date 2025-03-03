@@ -2,6 +2,7 @@ const Expense = require('../model/Expense');
 const { validateExpense } = require('../validations/expenseValidation');
 const ApiError = require('../../../utils/ApiError');
 const { uploadFile } = require('../../../utils/fileUpload');
+const Joi = require('joi');
 
 /**
  * Generate expense number
@@ -220,45 +221,61 @@ const getExpenseById = async (req, res, next) => {
 };
 
 // Update expense
-const updateExpense = async (req, res, next) => {
+const updateExpense = async (req, res) => {
   try {
-    const expense = await Expense.findById(req.params.id);
-    if (!expense) {
-      return next(new ApiError(404, 'Expense not found'));
-    }
+    const { id } = req.params;
+    const updateSchema = Joi.object({
+      description: Joi.string(),
+      amount: Joi.number().min(0),
+      date: Joi.date(),
+      category: Joi.string().valid('travel', 'office', 'meals', 'utilities', 'other'),
+      notes: Joi.string().allow(''),
+      status: Joi.string().valid('Pending', 'Approved', 'Rejected'),
+      documents: Joi.array()
+    });
 
-    // Check if user has permission to update
-    if (expense.submittedBy.toString() !== req.user._id.toString()) {
-      return next(new ApiError(403, 'Not authorized to update this expense'));
-    }
-
-    // Can only update if status is Pending
-    if (expense.status !== 'Pending') {
-      return next(new ApiError(400, 'Cannot update expense that is already processed'));
-    }
-
-    const { error } = validateExpense(req.body);
+    const { error, value } = updateSchema.validate(req.body);
     if (error) {
-      return next(new ApiError(400, error.details[0].message));
+      return res.status(400).json({
+        success: false,
+        error: {
+          statusCode: 400,
+          status: 'fail',
+          message: error.details[0].message
+        }
+      });
     }
 
-    // Handle new documents if any
-    if (req.files && req.files.length > 0) {
-      for (const file of req.files) {
-        const fileUrl = await uploadFile(file);
-        expense.documents.push({
-          fileName: file.originalname,
-          fileUrl: fileUrl
-        });
-      }
+    const expense = await Expense.findByIdAndUpdate(
+      id,
+      { ...value },
+      { new: true, runValidators: true }
+    );
+
+    if (!expense) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          statusCode: 404,
+          status: 'fail',
+          message: 'Expense not found'
+        }
+      });
     }
 
-    Object.assign(expense, req.body);
-    await expense.save();
-    res.json(expense);
+    res.status(200).json({
+      success: true,
+      data: expense
+    });
   } catch (error) {
-    console.error('Error updating expense:', error);
-    next(new ApiError(error.statusCode || 500, error.message || 'Error updating expense'));
+    res.status(500).json({
+      success: false,
+      error: {
+        statusCode: 500,
+        status: 'error',
+        message: error.message
+      }
+    });
   }
 };
 

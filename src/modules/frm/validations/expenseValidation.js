@@ -50,6 +50,13 @@ const expenseSchema = Joi.object({
       'string.max': 'Notes cannot exceed 1000 characters'
     }),
 
+  status: Joi.string()
+    .valid('Pending', 'Approved', 'Rejected')
+    .default('Pending')
+    .messages({
+      'any.only': 'Status must be Pending, Approved, or Rejected'
+    }),
+
   documents: Joi.array().items(
     Joi.object({
       fileName: Joi.string().required(),

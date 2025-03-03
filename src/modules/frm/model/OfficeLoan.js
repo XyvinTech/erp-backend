@@ -22,7 +22,7 @@ const officeLoanSchema = new mongoose.Schema({
     type: String,
     required: true,
     trim: true,
-    minlength: 50,
+    minlength: 10,
     maxlength: 2000
   },
   requestDate: {
@@ -50,16 +50,16 @@ const officeLoanSchema = new mongoose.Schema({
   documents: [{
     fileName: {
       type: String,
-      required: true
+      // required: true
     },
     fileUrl: {
       type: String,
-      required: true
+      // required: true
     },
     type: {
       type: String,
       enum: ['Quotation', 'Invoice', 'Other'],
-      required: true
+      // required: true
     },
     uploadDate: {
       type: Date,

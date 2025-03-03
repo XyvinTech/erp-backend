@@ -2,7 +2,7 @@ const Joi = require('joi');
 
 const officeLoanSchema = Joi.object({
   purpose: Joi.string()
-    .required()
+    // .required()
     .min(10)
     .max(1000)
     .messages({
@@ -28,7 +28,7 @@ const officeLoanSchema = Joi.object({
     }),
 
   justification: Joi.string()
-    .required()
+    // .required()
     .min(50)
     .max(2000)
     .messages({
