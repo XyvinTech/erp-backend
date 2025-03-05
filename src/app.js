@@ -20,7 +20,7 @@ const app = express();
 // CORS Configuration
 const corsOptions = {
   origin: function (origin, callback) {
-    const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:5173').split(',').map(o => o.trim());
+    const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:3000').split(',').map(o => o.trim());
     
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
@@ -120,7 +120,7 @@ const startServer = async () => {
     app.listen(PORT, HOST, () => {
       console.log(`Server running at http://${HOST}:${PORT}`);
       console.log('Environment:', process.env.NODE_ENV);
-      console.log('Allowed Origins:', (process.env.CORS_ORIGIN || 'http://localhost:5173').split(',').map(o => o.trim()));
+      console.log('Allowed Origins:', (process.env.CORS_ORIGIN || 'http://localhost:3000').split(',').map(o => o.trim()));
     });
   } catch (error) {
     console.error('Failed to start server:', error);

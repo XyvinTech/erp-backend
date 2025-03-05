@@ -9,7 +9,8 @@ const {
   updatePersonalLoan,
   processLoanApplication,
   recordPayment,
-  getLoanStats
+  getLoanStats,
+  deletePersonalLoan
 } = require('../controllers/personalLoanController');
 
 // Create new personal loan application
@@ -38,24 +39,27 @@ router.put('/:id',
   updatePersonalLoan
 );
 
+// Delete personal loan
+router.delete('/:id',
+  auth,
+  deletePersonalLoan
+);
+
 // Process loan application (approve/reject)
 router.post('/:id/process', 
   auth, 
-  checkRole(['admin', 'manager']), 
   processLoanApplication
 );
 
 // Record loan payment
 router.post('/:id/payment', 
-  auth, 
-  checkRole(['admin', 'manager']), 
+  auth,  
   recordPayment
 );
 
 // Get loan statistics
 router.get('/stats/overview', 
-  auth, 
-  checkRole(['admin', 'manager']), 
+  auth,  
   getLoanStats
 );
 

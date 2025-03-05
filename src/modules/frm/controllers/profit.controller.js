@@ -1,57 +1,190 @@
-const httpStatus = require('http-status');
-const catchAsync = require('../../../utils/catchAsync');
-const { profitService } = require('../services');
+const Profit = require('../model/Profit');
 const ApiError = require('../../../utils/ApiError');
-const pick = require('../../../utils/pick');
+const { uploadFile } = require('../../../utils/fileUpload');
 
-const createProfit = catchAsync(async (req, res) => {
-  const profit = await profitService.createProfit({
-    ...req.body,
-    recordedBy: req.user.id,
-    profitNumber: await profitService.generateProfitNumber()
-  });
-  res.status(httpStatus.CREATED).send(profit);
-});
+// Create new profit record
+const createProfit = async (req, res) => {
+  try {
+    const files = req.files;
+    const documents = [];
 
-const getProfits = catchAsync(async (req, res) => {
-  const filter = pick(req.query, ['title', 'category', 'status']);
-  const options = pick(req.query, ['sortBy', 'limit', 'page']);
-  const result = await profitService.queryProfits(filter, options);
-  res.send(result);
-});
+    if (files && files.length > 0) {
+      for (const file of files) {
+        const fileUrl = await uploadFile(file);
+        documents.push({
+          fileName: file.originalname,
+          fileUrl: fileUrl
+        });
+      }
+    }
 
-const getProfit = catchAsync(async (req, res) => {
-  const profit = await profitService.getProfitById(req.params.profitId);
-  if (!profit) {
-    throw new ApiError(httpStatus.NOT_FOUND, 'Profit not found');
+    const profit = new Profit({
+      ...req.body,
+      recordedBy: req.user._id,
+      documents
+    });
+
+    await profit.save();
+    res.status(201).json(profit);
+  } catch (error) {
+    throw new ApiError(error.statusCode || 500, error.message);
   }
-  res.send(profit);
-});
+};
 
-const updateProfit = catchAsync(async (req, res) => {
-  const profit = await profitService.updateProfitById(req.params.profitId, {
-    ...req.body,
-    verifiedBy: req.body.status === 'Verified' ? req.user.id : undefined,
-    verificationDate: req.body.status === 'Verified' ? new Date() : undefined
-  });
-  res.send(profit);
-});
+// Get all profit records (with filters)
+const getProfits = async (req, res) => {
+  try {
+    const { status, category, startDate, endDate, source } = req.query;
+    const filter = {};
 
-const deleteProfit = catchAsync(async (req, res) => {
-  await profitService.deleteProfitById(req.params.profitId);
-  res.status(httpStatus.NO_CONTENT).send();
-});
+    if (status) filter.status = status;
+    if (category) filter.category = category;
+    if (source) filter.source = source;
+    if (startDate || endDate) {
+      filter.date = {};
+      if (startDate) filter.date.$gte = new Date(startDate);
+      if (endDate) filter.date.$lte = new Date(endDate);
+    }
 
-const getProfitStats = catchAsync(async (req, res) => {
-  const stats = await profitService.getProfitStatistics();
-  res.send(stats);
-});
+    const profits = await Profit.find(filter)
+      .populate('recordedBy', 'name email')
+      .populate('verifiedBy', 'name email')
+      .sort({ date: -1 });
+
+    res.json(profits);
+  } catch (error) {
+    throw new ApiError(error.statusCode || 500, error.message);
+  }
+};
+
+// Get profit by ID
+const getProfitById = async (req, res) => {
+  try {
+    const profit = await Profit.findById(req.params.id)
+      .populate('recordedBy', 'name email')
+      .populate('verifiedBy', 'name email');
+
+    if (!profit) {
+      throw new ApiError(404, 'Profit record not found');
+    }
+
+    res.json(profit);
+  } catch (error) {
+    throw new ApiError(error.statusCode || 500, error.message);
+  }
+};
+
+// Update profit record
+const updateProfit = async (req, res) => {
+  try {
+    const profit = await Profit.findById(req.params.id);
+    if (!profit) {
+      throw new ApiError(404, 'Profit record not found');
+    }
+
+    if (req.files && req.files.length > 0) {
+      for (const file of req.files) {
+        const fileUrl = await uploadFile(file);
+        profit.documents.push({
+          fileName: file.originalname,
+          fileUrl: fileUrl
+        });
+      }
+    }
+
+    Object.assign(profit, req.body);
+    await profit.save();
+    res.json(profit);
+  } catch (error) {
+    throw new ApiError(error.statusCode || 500, error.message);
+  }
+};
+
+// Verify/Reject profit record
+const verifyProfit = async (req, res) => {
+  try {
+    const { status } = req.body;
+    if (!['Verified', 'Rejected'].includes(status)) {
+      throw new ApiError(400, 'Invalid status. Must be Verified or Rejected');
+    }
+
+    const profit = await Profit.findById(req.params.id);
+    if (!profit) {
+      throw new ApiError(404, 'Profit record not found');
+    }
+
+    if (profit.status !== 'Pending') {
+      throw new ApiError(400, 'Profit record is already processed');
+    }
+
+    profit.status = status;
+    profit.verifiedBy = req.user._id;
+    profit.verificationDate = new Date();
+
+    await profit.save();
+    res.json(profit);
+  } catch (error) {
+    throw new ApiError(error.statusCode || 500, error.message);
+  }
+};
+
+// Delete profit record
+const deleteProfit = async (req, res) => {
+  try {
+    const profit = await Profit.findById(req.params.id);
+    if (!profit) {
+      throw new ApiError(404, 'Profit record not found');
+    }
+
+    await profit.remove();
+    res.status(204).send();
+  } catch (error) {
+    throw new ApiError(error.statusCode || 500, error.message);
+  }
+};
+
+// Get profit statistics
+const getProfitStats = async (req, res) => {
+  try {
+    const stats = await Profit.aggregate([
+      {
+        $match: {
+          status: 'Verified'
+        }
+      },
+      {
+        $group: {
+          _id: '$category',
+          totalAmount: { $sum: '$amount' },
+          averageAmount: { $avg: '$amount' },
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    const overall = {
+      totalAmount: 0,
+      totalCount: 0,
+      categoryBreakdown: stats
+    };
+
+    stats.forEach(stat => {
+      overall.totalAmount += stat.totalAmount;
+      overall.totalCount += stat.count;
+    });
+
+    res.json(overall);
+  } catch (error) {
+    throw new ApiError(error.statusCode || 500, error.message);
+  }
+};
 
 module.exports = {
   createProfit,
   getProfits,
-  getProfit,
+  getProfitById,
   updateProfit,
+  verifyProfit,
   deleteProfit,
   getProfitStats
-}; 
+};

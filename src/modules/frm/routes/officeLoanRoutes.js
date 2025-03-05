@@ -12,6 +12,12 @@ const {
   getLoanStats
 } = require('../controllers/officeLoanController');
 
+// Get loan statistics by department
+router.get('/stats/department', 
+  auth, 
+  getLoanStats
+);
+
 // Create new office loan request
 router.post('/', 
   auth, 
@@ -41,22 +47,13 @@ router.put('/:id',
 // Process loan request (approve/reject)
 router.post('/:id/process', 
   auth, 
-  checkRole(['admin', 'manager']), 
   processLoanRequest
 );
 
 // Record loan payment
 router.post('/:id/payment', 
   auth, 
-  checkRole(['admin', 'manager']), 
   recordPayment
-);
-
-// Get loan statistics by department
-router.get('/stats/department', 
-  auth, 
-  checkRole(['admin', 'manager']), 
-  getLoanStats
 );
 
 module.exports = router; 

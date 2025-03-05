@@ -12,7 +12,6 @@ const personalLoanSchema = new mongoose.Schema({
     type: Number,
     required: true,
     min: 1000,
-    max: 50000
   },
   term: {
     type: Number,
@@ -39,21 +38,17 @@ const personalLoanSchema = new mongoose.Schema({
   existingLoans: [{
     lender: {
       type: String,
-      required: true
     },
     amount: {
       type: Number,
-      required: true,
       min: 0
     },
     remainingBalance: {
       type: Number,
-      required: true,
       min: 0
     },
     monthlyPayment: {
       type: Number,
-      required: true,
       min: 0
     }
   }],

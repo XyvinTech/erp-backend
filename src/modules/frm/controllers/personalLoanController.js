@@ -6,34 +6,58 @@ const { uploadFile } = require('../../../utils/fileUpload');
 // Create new personal loan application
 const createPersonalLoan = async (req, res) => {
   try {
-    const { error } = validatePersonalLoan(req.body);
+    let loanData;
+    let documents = [];
+
+    if (req.is('multipart/form-data')) {
+      loanData = JSON.parse(req.body.data);
+      if (req.files && req.files.length > 0) {
+        for (const file of req.files) {
+          const fileUrl = await uploadFile(file);
+          documents.push({
+            fileName: file.originalname,
+            fileUrl: fileUrl,
+          });
+        }
+      }
+    } else {
+      loanData = req.body;
+    }
+
+    // Convert numeric fields
+    if (loanData.amount) loanData.amount = parseFloat(loanData.amount);
+    if (loanData.monthlyIncome) loanData.monthlyIncome = parseFloat(loanData.monthlyIncome);
+    if (loanData.monthlyPayment) loanData.monthlyPayment = parseFloat(loanData.monthlyPayment);
+    if (loanData.term) loanData.term = parseFloat(loanData.term);
+    if (loanData.interestRate) loanData.interestRate = parseFloat(loanData.interestRate);
+
+    // Validate request body
+    const { error } = validatePersonalLoan(loanData);
     if (error) {
       throw new ApiError(400, error.details[0].message);
     }
 
-    const files = req.files;
-    const documents = [];
-
-    if (files && files.length > 0) {
-      for (const file of files) {
-        const fileUrl = await uploadFile(file);
-        documents.push({
-          fileName: file.originalname,
-          fileUrl: fileUrl
-        });
-      }
-    }
-
     const loan = new PersonalLoan({
-      ...req.body,
+      ...loanData,
+      documents,
       applicant: req.user._id,
-      documents
+      status: 'Pending',
     });
 
     await loan.save();
-    res.status(201).json(loan);
+
+    res.status(201).json({
+      status: 'success',
+      data: loan
+    });
   } catch (error) {
-    throw new ApiError(error.statusCode || 500, error.message);
+    console.error('Error creating personal loan:', error);
+    const statusCode = error.statusCode || 500;
+    const message = error.message || 'Internal Server Error';
+    res.status(statusCode).json({
+      status: 'error',
+      message
+    });
   }
 };
 
@@ -49,11 +73,6 @@ const getPersonalLoans = async (req, res) => {
       filter.createdAt = {};
       if (startDate) filter.createdAt.$gte = new Date(startDate);
       if (endDate) filter.createdAt.$lte = new Date(endDate);
-    }
-
-    // Add user role based filters
-    if (req.user.role !== 'admin' && req.user.role !== 'manager') {
-      filter.applicant = req.user._id;
     }
 
     const loans = await PersonalLoan.find(filter)
@@ -74,15 +93,7 @@ const getPersonalLoanById = async (req, res) => {
       .populate('applicant', 'name email')
       .populate('approvedBy', 'name email');
 
-    if (!loan) {
-      throw new ApiError(404, 'Personal loan not found');
-    }
-
-    // Check if user has permission to view
-    if (req.user.role !== 'admin' && req.user.role !== 'manager' && 
-        loan.applicant._id.toString() !== req.user._id.toString()) {
-      throw new ApiError(403, 'Not authorized to view this loan');
-    }
+    if (!loan) throw new ApiError(404, 'Personal loan not found');
 
     res.json(loan);
   } catch (error) {
@@ -94,40 +105,43 @@ const getPersonalLoanById = async (req, res) => {
 const updatePersonalLoan = async (req, res) => {
   try {
     const loan = await PersonalLoan.findById(req.params.id);
-    if (!loan) {
-      throw new ApiError(404, 'Personal loan not found');
-    }
+    if (!loan) throw new ApiError(404, 'Personal loan not found');
 
-    // Check if user has permission to update
-    if (loan.applicant.toString() !== req.user._id.toString()) {
-      throw new ApiError(403, 'Not authorized to update this loan');
-    }
+    let loanData;
+    let documents = [...loan.documents];
 
-    // Can only update if status is Pending
-    if (loan.status !== 'Pending') {
-      throw new ApiError(400, 'Cannot update loan that is already processed');
-    }
-
-    const { error } = validatePersonalLoan(req.body);
-    if (error) {
-      throw new ApiError(400, error.details[0].message);
-    }
-
-    // Handle new documents if any
-    if (req.files && req.files.length > 0) {
-      for (const file of req.files) {
-        const fileUrl = await uploadFile(file);
-        loan.documents.push({
-          fileName: file.originalname,
-          fileUrl: fileUrl
-        });
+    // Handle multipart form data with files
+    if (req.is('multipart/form-data')) {
+      loanData = JSON.parse(req.body.data);
+      if (req.files && req.files.length > 0) {
+        for (const file of req.files) {
+          const fileUrl = await uploadFile(file);
+          documents.push({
+            fileName: file.originalname,
+            fileUrl: fileUrl
+          });
+        }
       }
+    } else {
+      loanData = req.body;
     }
 
-    Object.assign(loan, req.body);
+    // Convert numeric fields
+    if (loanData.amount) loanData.amount = parseFloat(loanData.amount);
+    if (loanData.monthlyIncome) loanData.monthlyIncome = parseFloat(loanData.monthlyIncome);
+    if (loanData.monthlyPayment) loanData.monthlyPayment = parseFloat(loanData.monthlyPayment);
+
+    // Validate request body
+    const { error } = validatePersonalLoan(loanData);
+    if (error) throw new ApiError(400, error.details[0].message);
+
+    // Update loan with new data and documents
+    Object.assign(loan, { ...loanData, documents });
     await loan.save();
+
     res.json(loan);
   } catch (error) {
+    console.error('Error updating personal loan:', error);
     throw new ApiError(error.statusCode || 500, error.message);
   }
 };
@@ -141,26 +155,13 @@ const processLoanApplication = async (req, res) => {
     }
 
     const loan = await PersonalLoan.findById(req.params.id);
-    if (!loan) {
-      throw new ApiError(404, 'Personal loan not found');
-    }
-
-    // Check if user has permission to approve/reject
-    if (req.user.role !== 'admin' && req.user.role !== 'manager') {
-      throw new ApiError(403, 'Not authorized to process loans');
-    }
-
-    // Can only process if status is Pending
-    if (loan.status !== 'Pending') {
-      throw new ApiError(400, 'Loan is already processed');
-    }
+    if (!loan) throw new ApiError(404, 'Personal loan not found');
 
     loan.status = status;
     loan.approvedBy = req.user._id;
     loan.approvalDate = new Date();
 
     if (status === 'Approved') {
-      // Set next payment date to one month from approval
       loan.nextPaymentDate = new Date();
       loan.nextPaymentDate.setMonth(loan.nextPaymentDate.getMonth() + 1);
     }
@@ -178,17 +179,9 @@ const recordPayment = async (req, res) => {
     const { amount, date } = req.body;
     const loan = await PersonalLoan.findById(req.params.id);
 
-    if (!loan) {
-      throw new ApiError(404, 'Personal loan not found');
-    }
-
-    if (loan.status !== 'Approved') {
-      throw new ApiError(400, 'Cannot record payment for unapproved loan');
-    }
-
-    if (amount > loan.remainingBalance) {
-      throw new ApiError(400, 'Payment amount exceeds remaining balance');
-    }
+    if (!loan) throw new ApiError(404, 'Personal loan not found');
+    if (loan.status !== 'Approved') throw new ApiError(400, 'Cannot record payment for unapproved loan');
+    if (amount > loan.remainingBalance) throw new ApiError(400, 'Payment amount exceeds remaining balance');
 
     // Add payment record
     loan.payments.push({
@@ -217,14 +210,7 @@ const recordPayment = async (req, res) => {
 const getLoanStats = async (req, res) => {
   try {
     const stats = await PersonalLoan.aggregate([
-      {
-        $match: {
-          status: 'Approved',
-          ...(req.user.role !== 'admin' && req.user.role !== 'manager' 
-              ? { applicant: req.user._id } 
-              : {})
-        }
-      },
+      { $match: { status: 'Approved' } },
       {
         $group: {
           _id: null,
@@ -247,6 +233,36 @@ const getLoanStats = async (req, res) => {
   }
 };
 
+// Delete personal loan
+const deletePersonalLoan = async (req, res) => {
+  try {
+    const loan = await PersonalLoan.findById(req.params.id);
+    if (!loan) {
+      throw new ApiError(404, 'Personal loan not found');
+    }
+
+    // Only allow deletion of pending loans
+    if (loan.status !== 'Pending') {
+      throw new ApiError(400, 'Cannot delete a loan that has been processed');
+    }
+
+    await PersonalLoan.findByIdAndDelete(req.params.id);
+
+    res.status(200).json({
+      status: 'success',
+      message: 'Personal loan deleted successfully'
+    });
+  } catch (error) {
+    console.error('Error deleting personal loan:', error);
+    const statusCode = error.statusCode || 500;
+    const message = error.message || 'Internal Server Error';
+    res.status(statusCode).json({
+      status: 'error',
+      message
+    });
+  }
+};
+
 module.exports = {
   createPersonalLoan,
   getPersonalLoans,
@@ -254,5 +270,6 @@ module.exports = {
   updatePersonalLoan,
   processLoanApplication,
   recordPayment,
-  getLoanStats
-}; 
+  getLoanStats,
+  deletePersonalLoan
+};

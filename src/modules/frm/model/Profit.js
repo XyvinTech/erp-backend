@@ -59,11 +59,11 @@ const profitSchema = new mongoose.Schema({
   documents: [{
     fileName: {
       type: String,
-      required: true
+      // required: true
     },
     fileUrl: {
       type: String,
-      required: true
+      // required: true
     },
     uploadDate: {
       type: Date,

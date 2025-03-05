@@ -6,35 +6,68 @@ const { uploadFile } = require('../../../utils/fileUpload');
 // Create new office loan request
 const createOfficeLoan = async (req, res) => {
   try {
-    const { error } = validateOfficeLoan(req.body);
+    let loanData;
+    let documents = [];
+
+    // Handle multipart form data with files
+    if (req.is('multipart/form-data')) {
+      // Parse the JSON data string
+      loanData = JSON.parse(req.body.data);
+      
+      // Handle file uploads
+      if (req.files && req.files.length > 0) {
+        for (const file of req.files) {
+          const fileUrl = await uploadFile(file);
+          documents.push({
+            fileName: file.originalname,
+            fileUrl: fileUrl
+          });
+        }
+      }
+    } else {
+      // Handle JSON data without files
+      loanData = req.body;
+    }
+
+    // Convert amount to number
+    if (loanData.amount) {
+      loanData.amount = parseFloat(loanData.amount);
+    }
+
+    // Convert installments to number
+    if (loanData.repaymentPlan?.installments) {
+      loanData.repaymentPlan.installments = parseInt(loanData.repaymentPlan.installments);
+    }
+
+    // Validate request body
+    const { error } = validateOfficeLoan(loanData);
     if (error) {
       throw new ApiError(400, error.details[0].message);
     }
 
-    const files = req.files;
-    const documents = [];
-
-    if (files && files.length > 0) {
-      for (const file of files) {
-        const fileUrl = await uploadFile(file);
-        documents.push({
-          fileName: file.originalname,
-          fileUrl: fileUrl
-        });
-      }
-    }
-
+    // Create new loan document
     const loan = new OfficeLoan({
-      ...req.body,
+      ...loanData,
+      documents,
       requestedBy: req.user._id,
       requestDate: new Date(),
-      documents
+      status: 'Pending'
     });
 
     await loan.save();
-    res.status(201).json(loan);
+
+    res.status(201).json({
+      status: 'success',
+      data: loan
+    });
   } catch (error) {
-    throw new ApiError(error.statusCode || 500, error.message);
+    console.error('Error creating office loan:', error);
+    const statusCode = error.statusCode || 500;
+    const message = error.message || 'Internal Server Error';
+    res.status(statusCode).json({
+      status: 'error',
+      message
+    });
   }
 };
 
@@ -44,18 +77,12 @@ const getOfficeLoans = async (req, res) => {
     const { status, department, startDate, endDate } = req.query;
     const filter = {};
 
-    // Add filters if provided
     if (status) filter.status = status;
     if (department) filter.department = department;
     if (startDate || endDate) {
       filter.requestDate = {};
       if (startDate) filter.requestDate.$gte = new Date(startDate);
       if (endDate) filter.requestDate.$lte = new Date(endDate);
-    }
-
-    // Add user role based filters
-    if (req.user.role !== 'admin' && req.user.role !== 'manager') {
-      filter.requestedBy = req.user._id;
     }
 
     const loans = await OfficeLoan.find(filter)
@@ -80,12 +107,6 @@ const getOfficeLoanById = async (req, res) => {
       throw new ApiError(404, 'Office loan not found');
     }
 
-    // Check if user has permission to view
-    if (req.user.role !== 'admin' && req.user.role !== 'manager' && 
-        loan.requestedBy._id.toString() !== req.user._id.toString()) {
-      throw new ApiError(403, 'Not authorized to view this loan');
-    }
-
     res.json(loan);
   } catch (error) {
     throw new ApiError(error.statusCode || 500, error.message);
@@ -100,36 +121,52 @@ const updateOfficeLoan = async (req, res) => {
       throw new ApiError(404, 'Office loan not found');
     }
 
-    // Check if user has permission to update
-    if (loan.requestedBy.toString() !== req.user._id.toString()) {
-      throw new ApiError(403, 'Not authorized to update this loan request');
+    let loanData;
+    let documents = [...loan.documents]; // Keep existing documents
+
+    // Handle multipart form data with files
+    if (req.is('multipart/form-data')) {
+      // Parse the JSON data string
+      loanData = JSON.parse(req.body.data);
+      
+      // Handle file uploads
+      if (req.files && req.files.length > 0) {
+        for (const file of req.files) {
+          const fileUrl = await uploadFile(file);
+          documents.push({
+            fileName: file.originalname,
+            fileUrl: fileUrl
+          });
+        }
+      }
+    } else {
+      // Handle JSON data without files
+      loanData = req.body;
     }
 
-    // Can only update if status is Pending
-    if (loan.status !== 'Pending') {
-      throw new ApiError(400, 'Cannot update loan request that is already processed');
+    // Convert amount to number
+    if (loanData.amount) {
+      loanData.amount = parseFloat(loanData.amount);
     }
 
-    const { error } = validateOfficeLoan(req.body);
+    // Convert installments to number
+    if (loanData.repaymentPlan?.installments) {
+      loanData.repaymentPlan.installments = parseInt(loanData.repaymentPlan.installments);
+    }
+
+    // Validate request body
+    const { error } = validateOfficeLoan(loanData);
     if (error) {
       throw new ApiError(400, error.details[0].message);
     }
 
-    // Handle new documents if any
-    if (req.files && req.files.length > 0) {
-      for (const file of req.files) {
-        const fileUrl = await uploadFile(file);
-        loan.documents.push({
-          fileName: file.originalname,
-          fileUrl: fileUrl
-        });
-      }
-    }
-
-    Object.assign(loan, req.body);
+    // Update loan with new data and documents
+    Object.assign(loan, { ...loanData, documents });
     await loan.save();
+
     res.json(loan);
   } catch (error) {
+    console.error('Error updating office loan:', error);
     throw new ApiError(error.statusCode || 500, error.message);
   }
 };
@@ -147,12 +184,6 @@ const processLoanRequest = async (req, res) => {
       throw new ApiError(404, 'Office loan not found');
     }
 
-    // Check if user has permission to approve/reject
-    if (req.user.role !== 'admin' && req.user.role !== 'manager') {
-      throw new ApiError(403, 'Not authorized to process loan requests');
-    }
-
-    // Can only process if status is Pending
     if (loan.status !== 'Pending') {
       throw new ApiError(400, 'Loan request is already processed');
     }
@@ -196,7 +227,6 @@ const recordPayment = async (req, res) => {
       throw new ApiError(400, 'Payment amount exceeds remaining balance');
     }
 
-    // Add payment record
     loan.payments.push({
       amount,
       date: date || new Date(),
@@ -204,7 +234,6 @@ const recordPayment = async (req, res) => {
       recordedBy: req.user._id
     });
 
-    // Update remaining balance
     loan.remainingBalance -= amount;
 
     await loan.save();
@@ -217,38 +246,54 @@ const recordPayment = async (req, res) => {
 // Get loan statistics by department
 const getLoanStats = async (req, res) => {
   try {
-    const stats = await OfficeLoan.aggregate([
-      {
-        $match: {
-          status: 'Approved'
-        }
-      },
-      {
-        $group: {
-          _id: '$department',
-          totalAmount: { $sum: '$amount' },
-          averageAmount: { $avg: '$amount' },
-          count: { $sum: 1 },
-          remainingBalance: { $sum: '$remainingBalance' }
-        }
-      }
-    ]);
-
+    // Get all approved loans
+    const allLoans = await OfficeLoan.find({});
+    
+    // Calculate overall statistics
     const overall = {
       totalAmount: 0,
       totalRemaining: 0,
-      totalCount: 0,
-      departmentBreakdown: stats
+      totalCount: allLoans.length,
+      pendingCount: 0,
+      approvedCount: 0,
+      rejectedCount: 0,
+      departmentBreakdown: []
     };
 
-    stats.forEach(stat => {
-      overall.totalAmount += stat.totalAmount;
-      overall.totalRemaining += stat.remainingBalance;
-      overall.totalCount += stat.count;
+    // Group loans by department
+    const departmentStats = {};
+    
+    allLoans.forEach(loan => {
+      // Update overall stats
+      overall.totalAmount += loan.amount || 0;
+      overall.totalRemaining += loan.remainingBalance || 0;
+      
+      // Update status counts
+      if (loan.status === 'Pending') overall.pendingCount++;
+      if (loan.status === 'Approved') overall.approvedCount++;
+      if (loan.status === 'Rejected') overall.rejectedCount++;
+
+      // Update department stats
+      if (!departmentStats[loan.department]) {
+        departmentStats[loan.department] = {
+          department: loan.department,
+          totalAmount: 0,
+          count: 0,
+          remainingBalance: 0
+        };
+      }
+      
+      departmentStats[loan.department].totalAmount += loan.amount || 0;
+      departmentStats[loan.department].count++;
+      departmentStats[loan.department].remainingBalance += loan.remainingBalance || 0;
     });
+
+    // Convert department stats to array
+    overall.departmentBreakdown = Object.values(departmentStats);
 
     res.json(overall);
   } catch (error) {
+    console.error('Error getting loan stats:', error);
     throw new ApiError(error.statusCode || 500, error.message);
   }
 };
@@ -261,4 +306,4 @@ module.exports = {
   processLoanRequest,
   recordPayment,
   getLoanStats
-}; 
+};
