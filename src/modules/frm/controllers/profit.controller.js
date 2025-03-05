@@ -1,8 +1,36 @@
-const Profit = require('../model/Profit');
+const Profit = require('../models/Profit');
 const ApiError = require('../../../utils/ApiError');
 const { uploadFile } = require('../../../utils/fileUpload');
 
-// Create new profit record
+// Get next profit number
+const getNextProfitNumber = async (req, res) => {
+  try {
+    // Find the last profit record, sorted by profitNumber in descending order
+    const lastProfit = await Profit.findOne({}, { profitNumber: 1 })
+      .sort({ profitNumber: -1 });
+
+    // If no profits exist, start with PRF-0001, else increment the last number
+    const nextNumber = lastProfit 
+      ? String(Number(lastProfit.profitNumber.split('-')[1]) + 1).padStart(4, '0')
+      : '0001';
+
+    const profitNumber = `PRF-${nextNumber}`;
+
+    res.json({
+      success: true,
+      data: {
+        profit: { profitNumber }
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+// Create new profit
 const createProfit = async (req, res) => {
   try {
     const files = req.files;
@@ -18,128 +46,88 @@ const createProfit = async (req, res) => {
       }
     }
 
+    // Get the next profit number
+    const lastProfit = await Profit.findOne({}, { profitNumber: 1 })
+      .sort({ profitNumber: -1 });
+    const nextNumber = lastProfit 
+      ? String(Number(lastProfit.profitNumber.split('-')[1]) + 1).padStart(4, '0')
+      : '0001';
+    const profitNumber = `PRF-${nextNumber}`;
+
     const profit = new Profit({
       ...req.body,
-      recordedBy: req.user._id,
+      profitNumber,
       documents
     });
 
     await profit.save();
     res.status(201).json(profit);
   } catch (error) {
-    throw new ApiError(error.statusCode || 500, error.message);
+    res.status(400).json({ message: error.message });
   }
 };
 
-// Get all profit records (with filters)
+// Get all profits
 const getProfits = async (req, res) => {
   try {
-    const { status, category, startDate, endDate, source } = req.query;
+    const { status, category, startDate, endDate } = req.query;
     const filter = {};
 
     if (status) filter.status = status;
     if (category) filter.category = category;
-    if (source) filter.source = source;
     if (startDate || endDate) {
       filter.date = {};
       if (startDate) filter.date.$gte = new Date(startDate);
       if (endDate) filter.date.$lte = new Date(endDate);
     }
 
-    const profits = await Profit.find(filter)
-      .populate('recordedBy', 'name email')
-      .populate('verifiedBy', 'name email')
-      .sort({ date: -1 });
-
+    const profits = await Profit.find(filter).sort({ date: -1 });
     res.json(profits);
   } catch (error) {
-    throw new ApiError(error.statusCode || 500, error.message);
+    res.status(500).json({ message: error.message });
   }
 };
 
 // Get profit by ID
 const getProfitById = async (req, res) => {
   try {
-    const profit = await Profit.findById(req.params.id)
-      .populate('recordedBy', 'name email')
-      .populate('verifiedBy', 'name email');
-
+    const profit = await Profit.findById(req.params.id);
     if (!profit) {
-      throw new ApiError(404, 'Profit record not found');
+      return res.status(404).json({ message: 'Profit not found' });
     }
-
     res.json(profit);
   } catch (error) {
-    throw new ApiError(error.statusCode || 500, error.message);
+    res.status(500).json({ message: error.message });
   }
 };
 
-// Update profit record
+// Update profit
 const updateProfit = async (req, res) => {
   try {
-    const profit = await Profit.findById(req.params.id);
+    const profit = await Profit.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true }
+    );
     if (!profit) {
-      throw new ApiError(404, 'Profit record not found');
+      return res.status(404).json({ message: 'Profit not found' });
     }
-
-    if (req.files && req.files.length > 0) {
-      for (const file of req.files) {
-        const fileUrl = await uploadFile(file);
-        profit.documents.push({
-          fileName: file.originalname,
-          fileUrl: fileUrl
-        });
-      }
-    }
-
-    Object.assign(profit, req.body);
-    await profit.save();
     res.json(profit);
   } catch (error) {
-    throw new ApiError(error.statusCode || 500, error.message);
+    res.status(400).json({ message: error.message });
   }
 };
 
-// Verify/Reject profit record
-const verifyProfit = async (req, res) => {
-  try {
-    const { status } = req.body;
-    if (!['Verified', 'Rejected'].includes(status)) {
-      throw new ApiError(400, 'Invalid status. Must be Verified or Rejected');
-    }
-
-    const profit = await Profit.findById(req.params.id);
-    if (!profit) {
-      throw new ApiError(404, 'Profit record not found');
-    }
-
-    if (profit.status !== 'Pending') {
-      throw new ApiError(400, 'Profit record is already processed');
-    }
-
-    profit.status = status;
-    profit.verifiedBy = req.user._id;
-    profit.verificationDate = new Date();
-
-    await profit.save();
-    res.json(profit);
-  } catch (error) {
-    throw new ApiError(error.statusCode || 500, error.message);
-  }
-};
-
-// Delete profit record
+// Delete profit
 const deleteProfit = async (req, res) => {
   try {
-    const profit = await Profit.findById(req.params.id);
+    const profit = await Profit.findByIdAndDelete(req.params.id);
     if (!profit) {
-      throw new ApiError(404, 'Profit record not found');
+      return res.status(404).json({ message: 'Profit not found' });
     }
-
-    await profit.remove();
     res.status(204).send();
   } catch (error) {
-    throw new ApiError(error.statusCode || 500, error.message);
+    res.status(500).json({ message: error.message });
   }
 };
 
@@ -184,7 +172,7 @@ module.exports = {
   getProfits,
   getProfitById,
   updateProfit,
-  verifyProfit,
   deleteProfit,
-  getProfitStats
+  getProfitStats,
+  getNextProfitNumber
 };

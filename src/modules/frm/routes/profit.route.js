@@ -1,61 +1,23 @@
 const express = require('express');
-const auth = require('../../../middlewares/auth');
-const validate = require('../../../middlewares/validate');
-const profitController = require('../controllers/profit.controller');
-// Assuming you'll create a validation file, we'll reference it
-const profitValidation = require('../validations/profit.validation');
-
 const router = express.Router();
+const profitController = require('../controllers/profit.controller');
 
-// Main profit routes
-router
-  .route('/')
-  .post(
-    auth(),
-    validate(profitValidation.createProfit),
-    profitController.createProfit
-  )
-  .get(
-    auth(),
-    validate(profitValidation.getProfits),
-    profitController.getProfits
-  );
+// Get next profit number
+router.get('/next-number', profitController.getNextProfitNumber);
 
-// Stats route
-router
-  .route('/stats')
-  .get(
-    auth(),
-    validate(profitValidation.getProfitStats),
-    profitController.getProfitStats
-  );
+// Create a new profit
+router.post('/', profitController.createProfit);
 
-// Individual profit record routes
-router
-  .route('/:profitId')
-  .get(
-    auth(),
-    validate(profitValidation.getProfitById),
-    profitController.getProfitById
-  )
-  .patch(
-    auth(),
-    validate(profitValidation.updateProfit),
-    profitController.updateProfit
-  )
-  .delete(
-    auth(),
-    validate(profitValidation.deleteProfit),
-    profitController.deleteProfit
-  );
+// Get all profits
+router.get('/', profitController.getProfits);
 
-// Verify profit route
-router
-  .route('/:profitId/verify')
-  .post(
-    auth(),
-    validate(profitValidation.verifyProfit),
-    profitController.verifyProfit
-  );
+// Get profit by ID
+router.get('/:id', profitController.getProfitById);
+
+// Update profit
+router.put('/:id', profitController.updateProfit);
+
+// Delete profit
+router.delete('/:id', profitController.deleteProfit);
 
 module.exports = router;
