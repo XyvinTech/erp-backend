@@ -68,7 +68,7 @@ exports.createProject = async (req, res) => {
 exports.getProjects = async (req, res) => {
   try {
     const projects = await Project.find()
-      .populate('client', 'name company')
+      .populate('client', 'name company email phone')
       .populate({
         path: 'team',
         select: 'firstName lastName email position department role status',
@@ -80,6 +80,25 @@ exports.getProjects = async (req, res) => {
           {
             path: 'department',
             select: 'name'
+          }
+        ]
+      })
+      .populate({
+        path: 'tasks',
+        populate: [
+          {
+            path: 'assignee',
+            select: 'firstName lastName email position'
+          },
+          {
+            path: 'comments',
+            populate: {
+              path: 'author',
+              select: 'firstName lastName email'
+            }
+          },
+          {
+            path: 'attachments'
           }
         ]
       })
@@ -107,6 +126,25 @@ exports.getProjects = async (req, res) => {
         } : null,
         role: member.role,
         status: member.status
+      })),
+      tasks: project.tasks.map(task => ({
+        ...task.toObject(),
+        assignee: task.assignee ? {
+          id: task.assignee._id,
+          name: `${task.assignee.firstName} ${task.assignee.lastName}`,
+          firstName: task.assignee.firstName,
+          lastName: task.assignee.lastName,
+          email: task.assignee.email,
+          position: task.assignee.position
+        } : null,
+        comments: task.comments?.map(comment => ({
+          ...comment,
+          author: comment.author ? {
+            id: comment.author._id,
+            name: `${comment.author.firstName} ${comment.author.lastName}`,
+            email: comment.author.email
+          } : null
+        }))
       }))
     }));
 
@@ -313,6 +351,93 @@ exports.assignTeam = async (req, res) => {
     res.json(transformedProject);
   } catch (error) {
     console.error('Error in assignTeam:', error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Get project details
+exports.getProjectDetails = async (req, res) => {
+  try {
+    const project = await Project.findById(req.params.id)
+      .populate('client', 'name company email phone')
+      .populate({
+        path: 'team',
+        select: 'firstName lastName email position department role status',
+        populate: [
+          {
+            path: 'position',
+            select: 'title code description'
+          },
+          {
+            path: 'department',
+            select: 'name'
+          }
+        ]
+      })
+      .populate({
+        path: 'tasks',
+        select: 'title description status priority dueDate assignee comments attachments',
+        populate: [
+          {
+            path: 'assignee',
+            select: 'firstName lastName email position'
+          },
+          {
+            path: 'comments.author',
+            select: 'firstName lastName email'
+          }
+        ]
+      });
+    
+    if (!project) return res.status(404).json({ message: 'Project not found' });
+
+    // Transform project data
+    const transformedProject = {
+      ...project.toObject(),
+      team: project.team.map(member => ({
+        id: member._id,
+        _id: member._id,
+        name: `${member.firstName} ${member.lastName}`,
+        firstName: member.firstName,
+        lastName: member.lastName,
+        email: member.email,
+        position: member.position ? {
+          id: member.position._id,
+          title: member.position.title,
+          code: member.position.code,
+          description: member.position.description
+        } : null,
+        department: member.department ? {
+          id: member.department._id,
+          name: member.department.name
+        } : null,
+        role: member.role,
+        status: member.status
+      })),
+      tasks: project.tasks.map(task => ({
+        ...task,
+        assignee: task.assignee ? {
+          id: task.assignee._id,
+          name: `${task.assignee.firstName} ${task.assignee.lastName}`,
+          firstName: task.assignee.firstName,
+          lastName: task.assignee.lastName,
+          email: task.assignee.email,
+          position: task.assignee.position
+        } : null,
+        comments: task.comments?.map(comment => ({
+          ...comment,
+          author: comment.author ? {
+            id: comment.author._id,
+            name: `${comment.author.firstName} ${comment.author.lastName}`,
+            email: comment.author.email
+          } : null
+        }))
+      }))
+    };
+
+    res.json(transformedProject);
+  } catch (error) {
+    console.error('Error in getProjectDetails:', error);
     res.status(500).json({ message: error.message });
   }
 }; 
