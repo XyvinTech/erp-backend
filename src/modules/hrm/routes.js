@@ -24,4 +24,7 @@ router.use('/attendance', require('./routes/attendanceRoutes'));
 // Leave routes
 router.use('/leaves', require('./routes/leaveRoutes'));
 
+// Events routes
+router.use('/events', require('./routes/events'));
+
 module.exports = router; 
