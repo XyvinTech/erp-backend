@@ -1,4 +1,3 @@
-const User = require('../user/models/User');
 const { Employee } = require('../hrm/models');
 const catchAsync = require('../../utils/catchAsync');
 const ApiError = require('../../utils/ApiError');
@@ -34,13 +33,13 @@ exports.register = catchAsync(async (req, res, next) => {
   const { email, password, username, role } = req.body;
 
   // Check if user already exists
-  const existingUser = await User.findOne({ email });
+  const existingUser = await Employee.findOne({ email });
   if (existingUser) {
     return next(new ApiError('Email already registered', 400));
   }
 
   // Create new user
-  const user = await User.create({
+  const user = await Employee.create({
     email,
     password,
     username,
@@ -62,7 +61,7 @@ exports.login = catchAsync(async (req, res, next) => {
   }
 
   // First try to find a user
-  let user = await User.findOne({ email }).select('+password');
+  let user = await Employee.findOne({ email }).select('+password');
   let isPasswordValid = false;
 
   // If user found, verify password using comparePassword
@@ -88,7 +87,7 @@ exports.login = catchAsync(async (req, res, next) => {
  * Get current user profile
  */
 exports.getProfile = catchAsync(async (req, res, next) => {
-  const user = await User.findById(req.user.id);
+  const user = await Employee.findById(req.user.id);
   if (!user) {
     return next(new ApiError('User not found', 404));
   }
@@ -114,7 +113,7 @@ exports.updateProfile = catchAsync(async (req, res, next) => {
   const filteredBody = filterObj(req.body, 'name', 'email');
 
   // 3) Update user document
-  const updatedUser = await User.findByIdAndUpdate(req.user.id, filteredBody, {
+  const updatedUser = await Employee.findByIdAndUpdate(req.user.id, filteredBody, {
     new: true,
     runValidators: true
   });
@@ -132,7 +131,7 @@ exports.updateProfile = catchAsync(async (req, res, next) => {
  */
 exports.updatePassword = catchAsync(async (req, res, next) => {
   // 1) Get user from collection
-  const user = await User.findById(req.user.id).select('+password');
+    const user = await Employee.findById(req.user.id).select('+password');
 
   // 2) Check if POSTed current password is correct
   if (!(await user.comparePassword(req.body.currentPassword))) {

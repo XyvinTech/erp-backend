@@ -13,7 +13,7 @@ const {
   getCurrentEmployee,
   updateCurrentEmployee,
   getNextEmployeeId
-} = require('../controllers/employeeController');
+} = require('./employeeController');
 
 // Get next employee ID - Move this route to the top
 router.get('/next-id', auth, getNextEmployeeId);

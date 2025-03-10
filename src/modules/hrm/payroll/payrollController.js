@@ -1,4 +1,4 @@
-const Payroll = require('../models/Payroll');
+const Payroll = require('./Payroll');
 const Employee = require('../models/Employee');
 const { createError } = require('../../../utils/errors');
 
