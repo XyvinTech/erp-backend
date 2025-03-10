@@ -15,7 +15,7 @@ const createAdminUser = async () => {
       username: 'fasil',
       email: 'fasil@example.com',
       password: '1234',
-      role: 'admin',
+      role: '67cc562bf71f32d55006ef83',
       isActive: true
     });
 
