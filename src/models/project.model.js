@@ -35,13 +35,23 @@ const projectSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Employee'
   }],
+  manager: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Employee'
+  },
+  buisness_attachements: [{
+    type: String,
+  }],
+  technical_attachements: [{
+    type: String,
+  }],
   tasks: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Task'
   }],
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
+    ref: 'Employee',
     required: true
   }
 }, {
