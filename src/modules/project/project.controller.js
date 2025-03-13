@@ -1,4 +1,4 @@
-const Project = require('../../models/project.model');
+const Project = require('./project.model');
 const { validateProject } = require('./project.validation');
 
 // Create new project

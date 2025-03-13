@@ -1,5 +1,5 @@
 
-const Employee = require('../src/modules/hrm/models/Employee');
+const Employee = require('../src/modules/hrm/employee/employee.model');
 
 const seedEmployees = async () => {
     try {

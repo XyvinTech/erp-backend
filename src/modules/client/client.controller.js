@@ -1,4 +1,4 @@
-const Client = require('../../models/client.model');
+const Client = require('./client.model');
 const { validateClient } = require('./client.validation');
 
 // Create new client

@@ -1,7 +1,7 @@
 const jwt = require('jsonwebtoken');
 const { createError } = require('../utils/errors');
-const User = require('../models/User');
-const { Employee } = require('../modules/hrm/models');
+const User = require('../modules/user/user.model');
+const { Employee } = require('../modules/hrm/employee/employee.model');
 
 /**
  * Authentication middleware

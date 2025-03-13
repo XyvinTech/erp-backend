@@ -11,10 +11,10 @@ const connectDB = require('./config/database');
 
 // Import routes
 const routes = require('./routes');
-const payrollRoutes = require('./modules/hrm/routes/payrollRoutes');
+const payrollRoutes = require('./modules/hrm/payroll/payroll.routes');
 const clientRoutes = require('./modules/client/client.routes');
 const projectRoutes = require('./modules/project/project.routes');
-const taskRoutes = require('./modules/project/task.routes');
+const taskRoutes = require('./modules/project/task/task.routes');
 
 const app = express();
 
