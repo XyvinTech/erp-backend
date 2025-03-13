@@ -4,6 +4,7 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const path = require('path');
 require('dotenv').config();
+const runSeeds = require('../seeds/index');
 
 // Import database connection
 const connectDB = require('./config/database');
@@ -47,6 +48,12 @@ app.use(morgan('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+runSeeds().then(() => {
+  console.log('Seeds executed successfully');
+}).catch((error) => {
+  console.error('Error seeding:', error);
+  process.exit(1);
+});
 // Serve static files from the public directory with CORS enabled
 app.use('/public', (req, res, next) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
