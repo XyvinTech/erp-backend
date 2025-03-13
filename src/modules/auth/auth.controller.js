@@ -3,6 +3,7 @@ const { Employee } = require('../hrm/employee/employee.model');
 const catchAsync = require('../../utils/catchAsync');
 const ApiError = require('../../utils/ApiError');
 const jwt = require('jsonwebtoken');
+const Role = require('../role/role.model');
 
 const signToken = (id, role) => {
   return jwt.sign(
@@ -12,8 +13,12 @@ const signToken = (id, role) => {
   );
 };
 
-const createSendToken = (user, statusCode, res) => {
-  const token = signToken(user._id, user.role);
+const createSendToken = async (user, statusCode, res) => {
+
+  const roles = await Role.find({ _id: { $in: user.roles } }).select('name');
+  const roleNames = roles.map(role => role.name);
+
+  const token = signToken(user._id, roleNames);
   
   // Remove password from output
   user.password = undefined;

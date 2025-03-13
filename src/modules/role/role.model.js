@@ -21,10 +21,7 @@ const roleSchema = new mongoose.Schema({
     description: {
         type: String,
         required: true,
-    },
-    permissions: [{
-        type: String,
-    }]
+    }
    
 })
 
