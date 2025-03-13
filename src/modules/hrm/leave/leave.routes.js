@@ -9,14 +9,13 @@ const {
   reviewLeave,
   getLeaveStats 
 } = require('./leave.controller');
-const { auth, checkPermissions } = require('../../../middleware/auth');
+const { protect } = require('../../../middleware/authMiddleware');
 
-// Protect all routes
-router.use(auth);
+router.use(protect)
 
 // Leave statistics route
 router.route('/stats')
-  .get(checkPermissions('view_leaves'), getLeaveStats);
+  .get( getLeaveStats);
 
 // Leave routes
 router.route('/')
@@ -25,11 +24,11 @@ router.route('/')
 
 router.route('/:id')
   .get(getLeave)
-  .patch(checkPermissions('manage_leaves'), updateLeave)
-  .delete(checkPermissions('manage_leaves'), deleteLeave);
+  .patch( updateLeave)
+  .delete( deleteLeave);
 
 // Separate route for reviewing leaves
 router.route('/:id/review')
-  .patch(checkPermissions('approve_leaves'), reviewLeave);
+  .patch( reviewLeave);
 
 module.exports = router;

@@ -1,6 +1,5 @@
 const express = require('express');
 const router = express.Router();
-const { auth } = require('../../../middleware/auth');
 const {
   createTask,
   getProjectTasks,
@@ -10,14 +9,17 @@ const {
   updateTask,
   deleteTask
 } = require('./task.controller');
+const { protect } = require('../../../middleware/authMiddleware');
+
+router.use(protect)
 
 // Task routes
-router.post('/', auth, createTask);
-router.get('/project/:projectId', auth, getProjectTasks);
-router.patch('/:taskId/status', auth, updateTaskStatus);
-router.post('/:taskId/comments', auth, addComment);
-router.post('/:taskId/attachments', auth, addAttachment);
-router.patch('/:taskId', auth, updateTask);
-router.delete('/:taskId', auth, deleteTask);
+router.post('/',  createTask);
+router.get('/project/:projectId',  getProjectTasks);
+router.patch('/:taskId/status',  updateTaskStatus);
+router.post('/:taskId/comments',  addComment);
+router.post('/:taskId/attachments',  addAttachment);
+router.patch('/:taskId',  updateTask);
+router.delete('/:taskId',  deleteTask);
 
 module.exports = router; 

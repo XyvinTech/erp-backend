@@ -1,6 +1,5 @@
 const express = require('express');
 const router = express.Router();
-const { auth, checkRole } = require('../../../middleware/auth');
 const upload = require('../../../middleware/upload');
 const {
   createExpense,
@@ -12,9 +11,9 @@ const {
   getExpenseStats,
   getNextExpenseNumber
 } = require('../expense/expense.controller');
+const { protect } = require('../../../middleware/authMiddleware');
 
-// All routes require authentication
-router.use(auth);
+router.use(protect)
 
 // Get next expense number
 router.get('/next-number', getNextExpenseNumber);
@@ -38,6 +37,6 @@ router.put('/:id', upload.array('documents'), updateExpense);
 router.delete('/:id', deleteExpense);
 
 // Process expense (approve/reject) - requires admin or manager role
-router.patch('/:id/process', checkRole(['admin', 'manager']), processExpense);
+router.patch('/:id/process',  processExpense);
 
 module.exports = router; 

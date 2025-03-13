@@ -1,6 +1,5 @@
 const express = require('express');
 const router = express.Router();
-const { auth, checkPermissions, checkSelfOrPermission } = require('../../../middleware/auth');
 const {
   getAllEmployees,
   getEmployeeById,
@@ -14,18 +13,21 @@ const {
   updateCurrentEmployee,
   getNextEmployeeId
 } = require('./employee.controller');
+const { protect } = require('../../../middleware/authMiddleware');
+
+router.use(protect)
 
 // Get next employee ID - Move this route to the top
-router.get('/next-id', auth, getNextEmployeeId);
+router.get('/next-id',  getNextEmployeeId);
 
 // Get current employee profile
-router.get('/me', auth, getCurrentEmployee);
+router.get('/me',  getCurrentEmployee);
 
 // Update current employee profile
-router.patch('/me', auth, updateCurrentEmployee);
+router.patch('/me',  updateCurrentEmployee);
 
 // Update current employee profile picture
-router.post('/me/profile-picture', auth, upload.single('profilePicture'), (req, res, next) => {
+router.post('/me/profile-picture',  upload.single('profilePicture'), (req, res, next) => {
   try {
     updateProfilePicture(req, res, next);
   } catch (error) {
@@ -34,43 +36,43 @@ router.post('/me/profile-picture', auth, upload.single('profilePicture'), (req, 
 });
 
 // Get all employees
-router.get('/', auth, checkPermissions('view_employees'), getAllEmployees);
+router.get('/',   getAllEmployees);
 
 // Get employee by ID
-router.get('/:id', auth, checkPermissions('view_employees'), getEmployeeById);
+router.get('/:id',  getEmployeeById);
 
 // Create new employee
-router.post('/', auth, checkPermissions('manage_employees'), createEmployee);
+router.post('/',  createEmployee);
 
 // Update employee - allow self update or admin
 router.route('/:id')
-  .put(auth, (req, res, next) => {
+  .put( (req, res, next) => {
     if (req.user._id.toString() === req.params.id) {
       return updateCurrentEmployee(req, res, next);
     }
-    return checkPermissions('manage_employees')(req, res, () => updateEmployee(req, res, next));
+    return (req, res, () => updateEmployee(req, res, next));
   })
-  .patch(auth, (req, res, next) => {
+  .patch( (req, res, next) => {
     if (req.user._id.toString() === req.params.id) {
       return updateCurrentEmployee(req, res, next);
     }
-    return checkPermissions('manage_employees')(req, res, () => updateEmployee(req, res, next));
+    return (req, res, () => updateEmployee(req, res, next));
   });
 
 // Update employee profile picture - allow self update or admin
-router.post('/:id/profile-picture', auth, (req, res, next) => {
+router.post('/:id/profile-picture',  (req, res, next) => {
   if (req.user._id.toString() === req.params.id) {
     return upload.single('profilePicture')(req, res, () => updateProfilePicture(req, res, next));
   }
-  return checkPermissions('manage_employees')(req, res, () => {
+  return (req, res, () => {
     upload.single('profilePicture')(req, res, () => updateProfilePicture(req, res, next));
   });
 });
 
 // Delete employee
-router.delete('/:id', auth, checkPermissions('manage_employees'), deleteEmployee);
+router.delete('/:id', deleteEmployee);
 
 // Upload document
-router.post('/:id/documents', auth, checkPermissions('manage_employees'), uploadDocument);
+router.post('/:id/documents',  uploadDocument);
 
 module.exports = router; 

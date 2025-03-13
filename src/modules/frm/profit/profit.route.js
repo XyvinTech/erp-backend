@@ -1,6 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const profitController = require('../profit/profit.controller');
+const { protect } = require('../../../middleware/authMiddleware');
+
+
+router.use(protect)
 
 // Get next profit number
 router.get('/next-number', profitController.getNextProfitNumber);

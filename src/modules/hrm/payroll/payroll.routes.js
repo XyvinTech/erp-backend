@@ -1,34 +1,36 @@
 const express = require('express');
 const router = express.Router();
-const { auth, checkPermissions } = require('../../../middleware/auth');
 const payrollController = require('./payroll.controller');
+const { protect } = require('../../../middleware/authMiddleware');
+
+router.use(protect)
 
 // Employee routes (must come before other routes)
-router.get('/my-payroll', auth, payrollController.getMyPayroll);
+router.get('/my-payroll',  payrollController.getMyPayroll);
 
 // Get all payroll records
-router.get('/', auth, checkPermissions('view_payroll'), payrollController.getAllPayroll);
+router.get('/',  payrollController.getAllPayroll);
 
 // Get payroll by ID
-router.get('/:id', auth, checkPermissions('view_payroll'), payrollController.getPayrollById);
+router.get('/:id',  payrollController.getPayrollById);
 
 // Get employee salary
-router.get('/employee/:employeeId/salary', auth, checkPermissions('view_payroll'), payrollController.getEmployeeSalary);
+router.get('/employee/:employeeId/salary',  payrollController.getEmployeeSalary);
 
 // Create new payroll
-router.post('/', auth, checkPermissions('manage_payroll'), payrollController.createPayroll);
+router.post('/',  payrollController.createPayroll);
 
 // Update payroll
-router.put('/:id', auth, checkPermissions('manage_payroll'), payrollController.updatePayroll);
+router.put('/:id',  payrollController.updatePayroll);
 
 // Delete payroll
-router.delete('/:id', auth, checkPermissions('manage_payroll'), payrollController.deletePayroll);
+router.delete('/:id',  payrollController.deletePayroll);
 
 // Generate payroll
-router.post('/generate', auth, checkPermissions('manage_payroll'), payrollController.generatePayroll);
+router.post('/generate',  payrollController.generatePayroll);
 
 // Download payroll
-router.get('/:id/download', auth, checkPermissions('view_payroll'), payrollController.downloadPayroll);
+router.get('/:id/download', payrollController.downloadPayroll);
 
 // The route handler needs to be registered in the main app
 module.exports = router; 

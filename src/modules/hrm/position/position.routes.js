@@ -1,24 +1,26 @@
 const express = require('express');
 const router = express.Router();
-const { auth, checkPermissions } = require('../../../middleware/auth');
 const positionController = require('./positionController');
+const { protect } = require('../../../middleware/authMiddleware');
+
+router.use(protect)
 
 // Get all positions
-router.get('/', auth, positionController.getAllPositions);
+router.get('/',  positionController.getAllPositions);
 
 // Get single position
-router.get('/:id', auth, positionController.getPosition);
+router.get('/:id',  positionController.getPosition);
 
 // Create position
-router.post('/', auth, checkPermissions('manage_positions'), positionController.createPosition);
+router.post('/',   positionController.createPosition);
 
 // Update position
-router.put('/:id', auth, checkPermissions('manage_positions'), positionController.updatePosition);
+router.put('/:id',   positionController.updatePosition);
 
 // Delete position
-router.delete('/:id', auth, checkPermissions('manage_positions'), positionController.deletePosition);
+router.delete('/:id',   positionController.deletePosition);
 
 // Add this route before other routes to avoid conflicts with ID parameters
-router.get('/code/next', auth, checkPermissions('view_positions'), positionController.getNextPositionCode);
+router.get('/code/next', positionController.getNextPositionCode);
 
 module.exports = router; 

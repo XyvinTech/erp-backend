@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { auth, checkPermissions } = require('../../middleware/auth');
+
 
 // Import controllers
 // const departmentController = require('./department/department.controller');

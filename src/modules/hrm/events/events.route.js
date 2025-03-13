@@ -1,7 +1,7 @@
 // routes/eventRoutes.js
 const express = require('express');
 const router = express.Router();
-const { auth } = require('../../../middleware/auth');
+const { protect } = require('../../../middleware/authMiddleware');
 const {
   createEvent,
   getEvents,
@@ -10,7 +10,8 @@ const {
   deleteEvent
 } = require('./events.controller');
 
-router.use(auth);
+// Apply authentication middleware to all routes
+router.use(protect);
 
 router.route('/')
   .post(createEvent)

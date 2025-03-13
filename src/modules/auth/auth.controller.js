@@ -1,5 +1,5 @@
 const User = require('../user/user.model');
-const { Employee } = require('../hrm/employee/employee.model');
+const  Employee  = require('../hrm/employee/employee.model');
 const catchAsync = require('../../utils/catchAsync');
 const ApiError = require('../../utils/ApiError');
 const jwt = require('jsonwebtoken');
@@ -13,22 +13,37 @@ const signToken = (id, role) => {
   );
 };
 
-const createSendToken = async (user, statusCode, res) => {
+// const createSendToken = async (user, statusCode, res) => {
 
-  const roles = await Role.find({ _id: { $in: user.roles } }).select('name');
-  const roleNames = roles.map(role => role.name);
+//   const roles = await Role.find({ _id: { $in: user.roles } }).select('name');
+//   console.log('User roles:', user.roles);
+//   const roleNames = roles.map(role => role.name);
 
-  const token = signToken(user._id, roleNames);
-  
-  // Remove password from output
-  user.password = undefined;
+//   const token = signToken(user._id, roleNames);
+//   console.log(roleNames, "role name")
+//   // Remove password from output
+//   user.password = undefined;
 
-  res.status(200).json({
+//   res.status(200).json({
+//     status: 'success',
+//     data: {
+//       user,
+//       token
+//     }
+//   });
+// };
+
+const createSendToken = async (employee, statusCode, res) => {
+  employee = await Employee.findById(employee._id);
+  const roleName = employee.role[0];
+  const token = signToken(employee._id, roleName);
+  res.status(statusCode).json({
     status: 'success',
+    
     data: {
-      user,
-      token
-    }
+      employee,
+      token,
+    },
   });
 };
 
@@ -49,7 +64,7 @@ exports.register = catchAsync(async (req, res, next) => {
     email,
     password,
     username,
-    role: role || 'user'
+    role: role || 'employee'
   });
 
   createSendToken(user, 201, res);
@@ -60,7 +75,7 @@ exports.register = catchAsync(async (req, res, next) => {
  */
 exports.login = catchAsync(async (req, res, next) => {
   const { email, password } = req.body;
-
+console.log(req.body, "body");
   // Check if email and password exist
   if (!email || !password) {
     return next(new ApiError('Please provide email and password', 400));
@@ -83,6 +98,7 @@ exports.login = catchAsync(async (req, res, next) => {
 
   // If neither user nor employee found, or password doesn't match
   if (!user || !isPasswordValid) {
+    console.error('Incorrect email or password');
     return next(new ApiError('Incorrect email or password', 401));
   }
 
