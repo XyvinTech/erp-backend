@@ -1,4 +1,4 @@
-const Profit = require('../models/Profit');
+const Profit = require('../profit/profit.model');
 const ApiError = require('../../../utils/ApiError');
 const { uploadFile } = require('../../../utils/fileUpload');
 

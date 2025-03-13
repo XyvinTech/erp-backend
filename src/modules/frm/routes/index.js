@@ -1,9 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const expenseRoutes = require('./expenseRoutes');
-const personalLoanRoutes = require('./personalLoanRoutes');
-const officeLoanRoutes = require('./officeLoanRoutes');
-const profitRoutes = require('./profit.route');
+const expenseRoutes = require('../expense/expense.routes');
+const personalLoanRoutes = require('../personalLoan/personalLoan.routes');
+const officeLoanRoutes = require('../officeloan/officeLoan.routes');
+const profitRoutes = require('../profit/profit.route');
 
 // Mount routes
 router.use('/expenses', expenseRoutes);

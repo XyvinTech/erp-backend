@@ -11,7 +11,7 @@ const {
   processExpense,
   getExpenseStats,
   getNextExpenseNumber
-} = require('../controllers/expenseController');
+} = require('../expense/expense.controller');
 
 // All routes require authentication
 router.use(auth);

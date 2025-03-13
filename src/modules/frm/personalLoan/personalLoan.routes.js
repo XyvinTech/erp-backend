@@ -11,7 +11,7 @@ const {
   recordPayment,
   getLoanStats,
   deletePersonalLoan
-} = require('../controllers/personalLoanController');
+} = require('./personalLoan.controller');
 
 // Create new personal loan application
 router.post('/', 

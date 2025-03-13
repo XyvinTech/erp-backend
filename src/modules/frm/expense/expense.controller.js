@@ -1,4 +1,4 @@
-const Expense = require('../model/Expense');
+const Expense = require('../expense/expense.model');
 const { validateExpense } = require('../validations/expenseValidation');
 const ApiError = require('../../../utils/ApiError');
 const { uploadFile } = require('../../../utils/fileUpload');

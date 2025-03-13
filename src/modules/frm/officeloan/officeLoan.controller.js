@@ -1,4 +1,4 @@
-const OfficeLoan = require('../model/OfficeLoan');
+const OfficeLoan = require('./officeLoan.model');
 const { validateOfficeLoan } = require('../validations/officeLoanValidation');
 const ApiError = require('../../../utils/ApiError');
 const { uploadFile } = require('../../../utils/fileUpload');

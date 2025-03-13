@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const profitController = require('../controllers/profit.controller');
+const profitController = require('../profit/profit.controller');
 
 // Get next profit number
 router.get('/next-number', profitController.getNextProfitNumber);

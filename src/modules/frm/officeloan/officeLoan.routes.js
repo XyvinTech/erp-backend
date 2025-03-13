@@ -10,7 +10,7 @@ const {
   processLoanRequest,
   recordPayment,
   getLoanStats
-} = require('../controllers/officeLoanController');
+} = require('../officeloan/officeLoan.controller');
 
 // Get loan statistics by department
 router.get('/stats/department', 

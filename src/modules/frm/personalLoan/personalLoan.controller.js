@@ -1,4 +1,4 @@
-const PersonalLoan = require('../model/PersonalLoan');
+const PersonalLoan = require('./personalLoan.model');
 const { validatePersonalLoan } = require('../validations/personalLoanValidation');
 const ApiError = require('../../../utils/ApiError');
 const { uploadFile } = require('../../../utils/fileUpload');
