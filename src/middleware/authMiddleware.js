@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 const Employee = require('../modules/hrm/employee/employee.model');
 const Role = require('../modules/role/role.model');
+const ApiError = require('../utils/ApiError');
 
 // exports.protect = async (req, res, next) => {
 //     try {
@@ -46,52 +47,61 @@ exports.protect = async (req, res, next) => {
       }
   
       if (!token) {
-        return res.status(401).json({ message: 'Not authorized to access this route' });
+        return next(new ApiError('Not authorized to access this route', 401));
       }
   
       try {
         // Verify token
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        console.log('Decoded token:', decoded);
   
         // Get user from token
         req.user = await Employee.findById(decoded.id).select('-password');
-        req.user.role = decoded.role; // Add this line to include the role
+        
+        // Set the role from the token
+        req.user.role = decoded.role;
+        console.log('User role from token:', req.user.role);
   
         if (!req.user) {
-          return res.status(401).json({ message: 'User not found' });
+          return next(new ApiError('User not found', 401));
         }
   
         next();
       } catch (error) {
-        return res.status(401).json({ message: 'Not authorized to access this route' });
+        return next(new ApiError('Not authorized to access this route', 401));
       }
     } catch (error) {
-      return res.status(500).json({ message: 'Server Error' });
+      return next(new ApiError('Server Error', 500));
     }
   };
 
 exports.authorize = (...permissions) => {
     return async (req, res, next) => {
-        if (!req.user?.roles || !Array.isArray(req.user.roles)) {
-            return next(createError(401, 'User roles not found'));
+        try {
+            console.log('Checking permissions for role:', req.user?.role);
+            console.log('Required permissions:', permissions);
+            
+            if (!req.user?.role) {
+                return next(new ApiError('User role not found', 401));
+            }
+
+            // Handle both array and string roles
+            const userRole = Array.isArray(req.user.role) ? req.user.role[0] : req.user.role;
+            console.log('User role after processing:', userRole);
+
+            // Check if user's role matches any of the required permissions
+            const hasPermission = permissions.includes(userRole);
+            console.log('Has permission:', hasPermission);
+
+            if (!hasPermission) {
+                return next(new ApiError('You are not authorized to access this route', 403));
+            }
+
+            next();
+        } catch (error) {
+            console.error('Error in authorize middleware:', error);
+            return next(new ApiError('Error checking permissions', 500));
         }
-
-        // Fetch all roles assigned to the user
-        const roles = await Role.find({ _id: { $in: req.user.roles } });
-
-        if (!roles || roles.length === 0) {
-            console.log("roles not found");
-            return next(createError(401, 'Roles not found'));
-        }
-
-        // Check if any role has the required permission
-        const hasPermission = roles.some(role => permissions.includes(role.name));
-
-        if (!hasPermission) {
-            return next(createError(403, 'You are not authorized to access this route'));
-        }
-
-        next();
     }   
 }
 

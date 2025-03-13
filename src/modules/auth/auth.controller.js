@@ -34,17 +34,53 @@ const signToken = (id, role) => {
 // };
 
 const createSendToken = async (employee, statusCode, res) => {
-  employee = await Employee.findById(employee._id);
-  const roleName = employee.role[0];
-  const token = signToken(employee._id, roleName);
-  res.status(statusCode).json({
-    status: 'success',
+  try {
+    // Find employee and populate the role
+    employee = await Employee.findById(employee._id)
+      .populate({
+        path: 'role.role_type',
+        select: 'name'
+      });
     
-    data: {
-      employee,
-      token,
-    },
-  });
+    console.log('Employee:', employee);
+    console.log('Employee role:', JSON.stringify(employee.role, null, 2));
+    
+    // Get the role name from the populated role_type
+    let roleName = 'Employee'; // Default role
+    
+    if (employee.role && employee.role.length > 0) {
+      // If role is an array of strings, use the first one
+      if (typeof employee.role[0] === 'string') {
+        roleName = employee.role[0];
+      }
+      // If role is an array of objects with role_type, use the name
+      else if (employee.role[0].role_type && employee.role[0].role_type.name) {
+        roleName = employee.role[0].role_type.name;
+      }
+    }
+    
+    console.log('Role name being set:', roleName);
+    
+    // Create token with the role name
+    const token = signToken(employee._id, roleName);
+    
+    // Remove sensitive data
+    employee.password = undefined;
+    
+    res.status(statusCode).json({
+      status: 'success',
+      data: {
+        employee: {
+          ...employee.toObject(),
+          role: roleName // Send the role name in the response
+        },
+        token,
+      },
+    });
+  } catch (error) {
+    console.error('Error in createSendToken:', error);
+    throw error;
+  }
 };
 
 /**
