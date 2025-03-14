@@ -1,5 +1,5 @@
-const Profit = require('../profit/profit.model');
-const ApiError = require('../../../utils/ApiError');
+  const Profit = require('../profit/profit.model');
+const { createError } = require('../../../utils/errors');
 const { uploadFile } = require('../../../utils/fileUpload');
 
 // Get next profit number
@@ -163,7 +163,7 @@ const getProfitStats = async (req, res) => {
 
     res.json(overall);
   } catch (error) {
-    throw new ApiError(error.statusCode || 500, error.message);
+    throw createError(error.statusCode || 500, error.message);
   }
 };
 

@@ -1,6 +1,5 @@
 const Department = require('./department.model');
 const catchAsync = require('../../../utils/catchAsync');
-const ApiError = require('../../../utils/ApiError');
 const { createError } = require('../../../utils/errors');
 
 /**

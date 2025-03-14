@@ -13,7 +13,7 @@ exports.createProject = async (req, res) => {
     });
 
     await project.save();
-    
+
     // Populate after save
     const populatedProject = await Project.findById(project._id)
       .populate('client', 'name company')
@@ -56,7 +56,7 @@ exports.createProject = async (req, res) => {
         status: member.status
       }))
     };
-      
+
     res.status(201).json(transformedProject);
   } catch (error) {
     console.error('Error in createProject:', error);
@@ -67,7 +67,38 @@ exports.createProject = async (req, res) => {
 // Get all projects
 exports.getProjects = async (req, res) => {
   try {
-    const projects = await Project.find()
+    const userId = req.user._id;
+
+    // Check if user has Admin role
+    const isAdmin = req.user.role.some(role =>
+      (role.type === 'Admin' || (role.role_type && role.role_type.name === 'ERP System Administrator'))
+    );
+
+    // Check if user has Project Manager role
+    const isProjectManager = req.user.role.some(role =>
+      (role.type === 'Project' || (role.role_type && role.role_type.name === 'Project Manager'))
+    );
+
+    let query = {};
+
+    // If not admin, filter projects based on user's role
+    if (!isAdmin) {
+      if (isProjectManager) {
+        // Project managers can see projects they manage or are part of the team
+        query = {
+          $or: [
+            { manager: userId },
+            { team: userId },
+            { createdBy: userId }
+          ]
+        };
+      } else {
+        // Regular employees can only see projects they are part of
+        query = { team: userId };
+      }
+    }
+
+    const projects = await Project.find(query)
       .populate('client', 'name company email phone')
       .populate({
         path: 'team',
@@ -182,7 +213,7 @@ exports.getProject = async (req, res) => {
           select: 'firstName lastName email'
         }
       });
-    
+
     if (!project) return res.status(404).json({ message: 'Project not found' });
 
     // Transform team data to match expected format
@@ -228,21 +259,21 @@ exports.updateProject = async (req, res) => {
       { ...req.body },
       { new: true }
     )
-    .populate('client', 'name company')
-    .populate({
-      path: 'team',
-      select: 'firstName lastName email position department role status',
-      populate: [
-        {
-          path: 'position',
-          select: 'title code description'
-        },
-        {
-          path: 'department',
-          select: 'name'
-        }
-      ]
-    });
+      .populate('client', 'name company')
+      .populate({
+        path: 'team',
+        select: 'firstName lastName email position department role status',
+        populate: [
+          {
+            path: 'position',
+            select: 'title code description'
+          },
+          {
+            path: 'department',
+            select: 'name'
+          }
+        ]
+      });
 
     if (!project) return res.status(404).json({ message: 'Project not found' });
 
@@ -293,7 +324,7 @@ exports.deleteProject = async (req, res) => {
 exports.assignTeam = async (req, res) => {
   try {
     const { employees } = req.body;
-    
+
     if (!Array.isArray(employees)) {
       return res.status(400).json({ message: 'Employees must be an array of IDs' });
     }
@@ -303,21 +334,21 @@ exports.assignTeam = async (req, res) => {
       { team: employees },
       { new: true }
     )
-    .populate('client', 'name company')
-    .populate({
-      path: 'team',
-      select: 'firstName lastName email position department role status',
-      populate: [
-        {
-          path: 'position',
-          select: 'title code description'
-        },
-        {
-          path: 'department',
-          select: 'name'
-        }
-      ]
-    });
+      .populate('client', 'name company')
+      .populate({
+        path: 'team',
+        select: 'firstName lastName email position department role status',
+        populate: [
+          {
+            path: 'position',
+            select: 'title code description'
+          },
+          {
+            path: 'department',
+            select: 'name'
+          }
+        ]
+      });
 
     if (!project) {
       return res.status(404).json({ message: 'Project not found' });
@@ -388,7 +419,7 @@ exports.getProjectDetails = async (req, res) => {
           }
         ]
       });
-    
+
     if (!project) return res.status(404).json({ message: 'Project not found' });
 
     // Transform project data
@@ -439,5 +470,38 @@ exports.getProjectDetails = async (req, res) => {
   } catch (error) {
     console.error('Error in getProjectDetails:', error);
     res.status(500).json({ message: error.message });
+  }
+};
+
+// Test project access
+exports.testProjectAccess = async (req, res) => {
+  try {
+    const projectId = req.params.id;
+    const userId = req.user._id;
+
+    // This route is protected by hasProjectAccess middleware
+    // If we reach here, the user has access to the project
+
+    res.status(200).json({
+      success: true,
+      message: 'You have access to this project',
+      user: {
+        id: req.user._id,
+        name: `${req.user.firstName} ${req.user.lastName}`,
+        email: req.user.email,
+        roles: req.user.role.map(r => ({
+          type: r.type,
+          role_type: r.role_type
+        }))
+      },
+      projectId
+    });
+  } catch (error) {
+    console.error('Error in testProjectAccess:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
   }
 }; 

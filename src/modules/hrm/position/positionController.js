@@ -1,7 +1,4 @@
 const Position = require('./position.model');
-const Employee = require('../employee/employee.model');
-const Department = require('../department/department.model');
-const ApiError = require('../../../utils/ApiError');
 const catchAsync = require('../../../utils/catchAsync');
 const { createError } = require('../../../utils/errors');
 const { validatePosition } = require('../validation');

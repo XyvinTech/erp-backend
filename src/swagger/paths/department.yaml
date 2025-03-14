@@ -1,5 +1,5 @@
 paths:
-  /api/hrm/departments:
+  /hrm/departments:
     get:
       tags: [Departments]
       summary: Get all departments
@@ -43,7 +43,7 @@ paths:
         403:
           description: Not authorized to create departments
 
-  /api/hrm/departments/{id}:
+  /hrm/departments/{id}:
     get:
       tags: [Departments]
       summary: Get department by ID

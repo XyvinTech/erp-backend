@@ -1,6 +1,6 @@
 const OfficeLoan = require('./officeLoan.model');
 const { validateOfficeLoan } = require('../validations/officeLoanValidation');
-const ApiError = require('../../../utils/ApiError');
+const { createError } = require('../../../utils/errors');
 const { uploadFile } = require('../../../utils/fileUpload');
 
 // Create new office loan request
@@ -42,7 +42,7 @@ const createOfficeLoan = async (req, res) => {
     // Validate request body
     const { error } = validateOfficeLoan(loanData);
     if (error) {
-      throw new ApiError(400, error.details[0].message);
+      throw createError(400, error.details[0].message);
     }
 
     // Create new loan document
@@ -92,7 +92,7 @@ const getOfficeLoans = async (req, res) => {
 
     res.json(loans);
   } catch (error) {
-    throw new ApiError(error.statusCode || 500, error.message);
+    throw createError(error.statusCode || 500, error.message);
   }
 };
 
@@ -104,12 +104,12 @@ const getOfficeLoanById = async (req, res) => {
       .populate('approvedBy', 'name email');
 
     if (!loan) {
-      throw new ApiError(404, 'Office loan not found');
+      throw createError(404, 'Office loan not found');
     }
 
     res.json(loan);
   } catch (error) {
-    throw new ApiError(error.statusCode || 500, error.message);
+    throw createError(error.statusCode || 500, error.message);
   }
 };
 
@@ -118,7 +118,7 @@ const updateOfficeLoan = async (req, res) => {
   try {
     const loan = await OfficeLoan.findById(req.params.id);
     if (!loan) {
-      throw new ApiError(404, 'Office loan not found');
+      throw createError(404, 'Office loan not found');
     }
 
     let loanData;
@@ -157,7 +157,7 @@ const updateOfficeLoan = async (req, res) => {
     // Validate request body
     const { error } = validateOfficeLoan(loanData);
     if (error) {
-      throw new ApiError(400, error.details[0].message);
+      throw createError(400, error.details[0].message);
     }
 
     // Update loan with new data and documents
@@ -167,7 +167,7 @@ const updateOfficeLoan = async (req, res) => {
     res.json(loan);
   } catch (error) {
     console.error('Error updating office loan:', error);
-    throw new ApiError(error.statusCode || 500, error.message);
+    throw createError(error.statusCode || 500, error.message);
   }
 };
 
@@ -176,20 +176,20 @@ const processLoanRequest = async (req, res) => {
   try {
     const { status, notes, repaymentPlan } = req.body;
     if (!['Approved', 'Rejected'].includes(status)) {
-      throw new ApiError(400, 'Invalid status');
+      throw createError(400, 'Invalid status');
     }
 
     const loan = await OfficeLoan.findById(req.params.id);
     if (!loan) {
-      throw new ApiError(404, 'Office loan not found');
+      throw createError(404, 'Office loan not found');
     }
 
     if (loan.status !== 'Pending') {
-      throw new ApiError(400, 'Loan request is already processed');
+      throw createError(400, 'Loan request is already processed');
     }
 
     if (status === 'Approved' && !repaymentPlan) {
-      throw new ApiError(400, 'Repayment plan is required for approval');
+      throw createError(400, 'Repayment plan is required for approval');
     }
 
     loan.status = status;
@@ -205,7 +205,7 @@ const processLoanRequest = async (req, res) => {
     await loan.save();
     res.json(loan);
   } catch (error) {
-    throw new ApiError(error.statusCode || 500, error.message);
+    throw createError(error.statusCode || 500, error.message);
   }
 };
 
@@ -216,15 +216,15 @@ const recordPayment = async (req, res) => {
     const loan = await OfficeLoan.findById(req.params.id);
 
     if (!loan) {
-      throw new ApiError(404, 'Office loan not found');
+      throw createError(404, 'Office loan not found');
     }
 
     if (loan.status !== 'Approved') {
-      throw new ApiError(400, 'Cannot record payment for unapproved loan');
+      throw createError(400, 'Cannot record payment for unapproved loan');
     }
 
     if (amount > loan.remainingBalance) {
-      throw new ApiError(400, 'Payment amount exceeds remaining balance');
+      throw createError(400, 'Payment amount exceeds remaining balance');
     }
 
     loan.payments.push({
@@ -239,7 +239,7 @@ const recordPayment = async (req, res) => {
     await loan.save();
     res.json(loan);
   } catch (error) {
-    throw new ApiError(error.statusCode || 500, error.message);
+    throw createError(error.statusCode || 500, error.message);
   }
 };
 
@@ -294,7 +294,7 @@ const getLoanStats = async (req, res) => {
     res.json(overall);
   } catch (error) {
     console.error('Error getting loan stats:', error);
-    throw new ApiError(error.statusCode || 500, error.message);
+    throw createError(error.statusCode || 500, error.message);
   }
 };
 

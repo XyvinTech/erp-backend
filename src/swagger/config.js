@@ -22,7 +22,7 @@ const options = {
     },
     servers: [
       {
-        url: `http://localhost:${ env.PORT || 5000}`,
+        url: `http://localhost:${env.PORT || 5000}${env.BASE_PATH}`,
         description: 'Development server'
       },
       {
@@ -85,9 +85,8 @@ const options = {
     ]
   },
   apis: [
-    './swagger/schemas/*.yaml',
-    './swagger/paths/*.yaml',
-    './swagger/tags/*.yaml'
+    './src/swagger/schemas/*.yaml',
+    './src/swagger/paths/*.yaml'
   ]
 };
 
@@ -97,7 +96,7 @@ const swagger_options = {
     filter: true,
     tagsSorter: "alpha",
     operationsSorter: "alpha",
-    
+
   },
 };
 
@@ -106,4 +105,4 @@ const swaggerSpec = swaggerJsDoc(options);
 
 
 
-module.exports = { swaggerSpec , swagger_options }; 
+module.exports = { swaggerSpec, swagger_options }; 

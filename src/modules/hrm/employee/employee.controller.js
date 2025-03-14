@@ -2,7 +2,6 @@ const {  Position } = require('../position/position.model');
 const Department = require('../department/department.model');
 const Employee = require('./employee.model');
 const catchAsync = require('../../../utils/catchAsync');
-const ApiError = require('../../../utils/ApiError');
 const { createError } = require('../../../utils/errors');
 const mongoose = require('mongoose');
 const multer = require('multer');
@@ -418,7 +417,7 @@ const uploadDocument = catchAsync(async (req, res) => {
 const updateProfilePicture = catchAsync(async (req, res) => {
   try {
     if (!req.file) {
-      throw new ApiError('Please provide an image file', 400);
+      throw createError(400, 'Please provide an image file');
     }
 
     // Get employee ID from authenticated user
@@ -426,7 +425,7 @@ const updateProfilePicture = catchAsync(async (req, res) => {
 
     const employee = await Employee.findById(employeeId);
     if (!employee) {
-      throw new ApiError('Employee not found', 404);
+      throw createError(404, 'Employee not found');
     }
 
     // Delete old profile picture if exists

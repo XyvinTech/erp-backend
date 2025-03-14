@@ -1,5 +1,5 @@
 paths:
-  /api/hrm/positions:
+  /hrm/positions:
     get:
       tags: [Positions]
       summary: Get all positions
@@ -43,7 +43,7 @@ paths:
         403:
           description: Not authorized to create positions
 
-  /api/hrm/positions/{id}:
+  /hrm/positions/{id}:
     get:
       tags: [Positions]
       summary: Get position by ID

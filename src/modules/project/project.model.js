@@ -58,4 +58,9 @@ const projectSchema = new mongoose.Schema({
   timestamps: true
 });
 
+// Add index for faster queries on team members and manager
+projectSchema.index({ team: 1 });
+projectSchema.index({ manager: 1 });
+projectSchema.index({ createdBy: 1 });
+
 module.exports = mongoose.model('Project', projectSchema); 

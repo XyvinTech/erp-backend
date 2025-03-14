@@ -1,5 +1,5 @@
 paths:
-  /api/auth/register:
+  /auth/register:
     post:
       tags: [Auth]
       summary: Register a new user
@@ -31,7 +31,7 @@ paths:
                     type: string
                     example: Email already registered
 
-  /api/auth/login:
+  /auth/login:
     post:
       tags: [Auth]
       summary: Login user
@@ -52,7 +52,7 @@ paths:
         401:
           $ref: '#/components/responses/UnauthorizedError'
 
-  /api/auth/me:
+  /auth/me:
     get:
       tags: [Auth]
       summary: Get current user profile
@@ -75,7 +75,7 @@ paths:
         401:
           $ref: '#/components/responses/UnauthorizedError'
 
-  /api/auth/logout:
+  /auth/logout:
     post:
       tags: [Auth]
       summary: Logout user

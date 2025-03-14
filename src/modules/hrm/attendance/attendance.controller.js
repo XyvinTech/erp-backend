@@ -1,6 +1,5 @@
 const Attendance = require('./attendance.model');
 const Employee = require('../employee/employee.model');
-const AppError = require('../../../utils/AppError');
 const catchAsync = require('../../../utils/catchAsync');
 const { createError } = require('../../../utils/errors');
 
@@ -60,7 +59,7 @@ exports.getAttendance = catchAsync(async (req, res) => {
     });
 
   if (!attendance) {
-    throw new AppError('No attendance record found with that ID', 404);
+    throw createError(404, 'No attendance record found with that ID');
   }
 
   res.status(200).json({
@@ -80,7 +79,7 @@ exports.createAttendance = catchAsync(async (req, res) => {
   });
 
   if (existingAttendance) {
-    throw new AppError('Attendance record already exists for this date', 400);
+    throw createError(400, 'Attendance record already exists for this date');
   }
 
   // Create attendance with check-in only
@@ -120,29 +119,29 @@ exports.createBulkAttendance = catchAsync(async (req, res) => {
 
   // Validate input
   if (!Array.isArray(attendanceRecords) || attendanceRecords.length === 0) {
-    throw new AppError('Please provide an array of attendance records', 400);
+    throw createError(400, 'Please provide an array of attendance records');
   }
 
   // Validate each record has required fields and proper date format
   attendanceRecords.forEach((record, index) => {
     if (!record.employee) {
-      throw new AppError(`Employee ID is required for record at index ${index}`, 400);
+      throw createError(400, `Employee ID is required for record at index ${index}`);
     }
     if (!record.date) {
-      throw new AppError(`Date is required for record at index ${index}`, 400);
+      throw createError(400, `Date is required for record at index ${index}`);
     }
     
     // Validate date format
     const date = new Date(record.date);
     if (isNaN(date.getTime())) {
-      throw new AppError(`Invalid date format for record at index ${index}`, 400);
+      throw createError(400, `Invalid date format for record at index ${index}`);
     }
   });
 
   const employeeIds = [...new Set(attendanceRecords.map(record => record.employee))];
 
   if (employeeIds.length === 0) {
-    throw new AppError('No valid employee IDs provided', 400);
+    throw createError(400, 'No valid employee IDs provided');
   }
 
   // Check if employees exist and are active
@@ -151,13 +150,13 @@ exports.createBulkAttendance = catchAsync(async (req, res) => {
   }).select('_id status');
 
   if (employees.length !== employeeIds.length) {
-    throw new AppError('One or more employees not found', 400);
+    throw createError(400, 'One or more employees not found');
   }
 
   // Verify all employees are active
   const inactiveEmployees = employees.filter(emp => emp.status !== 'active');
   if (inactiveEmployees.length > 0) {
-    throw new AppError(`Found ${inactiveEmployees.length} inactive employee(s)`, 400);
+    throw createError(400, `Found ${inactiveEmployees.length} inactive employee(s)`);
   }
 
   const results = [];
@@ -230,7 +229,7 @@ exports.createBulkAttendance = catchAsync(async (req, res) => {
       if (!['Holiday', 'On-Leave'].includes(record.status)) {
         const checkInTime = record.checkIn?.time ? new Date(record.checkIn.time) : new Date();
         if (isNaN(checkInTime.getTime())) {
-          throw new AppError('Invalid check-in time format', 400);
+          throw createError(400, 'Invalid check-in time format');
         }
 
         attendanceData.checkIn = {
@@ -308,15 +307,15 @@ exports.checkOut = catchAsync(async (req, res) => {
   const attendance = await Attendance.findById(id);
 
   if (!attendance) {
-    throw new AppError('No attendance record found with that ID', 404);
+    throw createError(404, 'No attendance record found with that ID');
   }
 
   if (!attendance.checkIn || !attendance.checkIn.time) {
-    throw new AppError('Cannot checkout without a check-in record', 400);
+    throw createError(400, 'Cannot checkout without a check-in record');
   }
 
   if (attendance.checkOut && attendance.checkOut.time) {
-    throw new AppError('Employee has already checked out', 400);
+    throw createError(400, 'Employee has already checked out');
   }
 
   const checkInTime = new Date(attendance.checkIn.time);
@@ -324,7 +323,7 @@ exports.checkOut = catchAsync(async (req, res) => {
 
   // Validate checkout time is after checkin
   if (checkOutTime <= checkInTime) {
-    throw new AppError('Check-out time must be after check-in time', 400);
+    throw createError(400, 'Check-out time must be after check-in time');
   }
 
   // Calculate work hours
@@ -385,7 +384,7 @@ exports.deleteAttendance = catchAsync(async (req, res) => {
   const attendance = await Attendance.findById(req.params.id);
 
   if (!attendance) {
-    throw new AppError('No attendance record found with that ID', 404);
+    throw createError(404, 'No attendance record found with that ID');
   }
 
   // Implement soft delete
@@ -569,7 +568,7 @@ exports.updateAttendance = catchAsync(async (req, res) => {
   const attendance = await Attendance.findById(req.params.id);
   
   if (!attendance) {
-    throw new AppError('No attendance record found with that ID', 404);
+    throw createError(404, 'No attendance record found with that ID');
   }
 
   // Calculate work hours if both checkIn and checkOut are provided

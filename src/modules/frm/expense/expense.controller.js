@@ -1,6 +1,5 @@
 const Expense = require('../expense/expense.model');
 const { validateExpense } = require('../validations/expenseValidation');
-const ApiError = require('../../../utils/ApiError');
 const { uploadFile } = require('../../../utils/fileUpload');
 const Joi = require('joi');
 
@@ -58,7 +57,7 @@ const createExpense = async (req, res, next) => {
   try {
     // Check if user is authenticated
     if (!req.user || !req.user._id) {
-      return next(new ApiError(401, 'User not authenticated'));
+      return next(createError(401, 'User not authenticated'));
     }
 
     // Generate expense number
@@ -67,7 +66,7 @@ const createExpense = async (req, res, next) => {
     // Validate request body
     const { error } = validateExpense(req.body);
     if (error) {
-      return next(new ApiError(400, error.details[0].message));
+        return next(createError(400, error.details[0].message));
     }
 
     // Convert amount to number
@@ -102,7 +101,7 @@ const createExpense = async (req, res, next) => {
     res.status(201).json(expense);
   } catch (error) {
     console.error('Expense creation error:', error);
-    next(new ApiError(error.statusCode || 500, error.message || 'Error creating expense'));
+    next(createError(error.statusCode || 500, error.message || 'Error creating expense'));
   }
 };
 
@@ -111,7 +110,7 @@ const getNextExpenseNumber = async (req, res, next) => {
   try {
     // Check if user is authenticated
     if (!req.user || !req.user._id) {
-      return next(new ApiError(401, 'User not authenticated'));
+      return next(createError(401, 'User not authenticated'));
     }
 
     console.log('Generating next expense number...');
@@ -153,7 +152,7 @@ const getNextExpenseNumber = async (req, res, next) => {
     });
   } catch (error) {
     console.error('Error in getNextExpenseNumber:', error);
-    return next(new ApiError(500, 'Failed to generate expense number'));
+    return next(createError(500, 'Failed to generate expense number'));
   }
 };
 
@@ -162,7 +161,7 @@ const getExpenses = async (req, res, next) => {
   try {
     // Check if user is authenticated
     if (!req.user || !req.user._id) {
-      return next(new ApiError(401, 'User not authenticated'));
+      return next(createError(401, 'User not authenticated'));
     }
 
     const { status, category, startDate, endDate } = req.query;
@@ -192,7 +191,7 @@ const getExpenses = async (req, res, next) => {
     res.json(expenses);
   } catch (error) {
     console.error('Error fetching expenses:', error);
-    next(new ApiError(error.statusCode || 500, error.message || 'Error fetching expenses'));
+    next(createError(error.statusCode || 500, error.message || 'Error fetching expenses'));
   }
 };
 
@@ -204,19 +203,19 @@ const getExpenseById = async (req, res, next) => {
       .populate('approvedBy', 'name email');
 
     if (!expense) {
-      return next(new ApiError(404, 'Expense not found'));
+      return next(createError(404, 'Expense not found'));
     }
 
     // Check if user has permission to view
     if (req.user.role !== 'admin' && req.user.role !== 'manager' && 
         expense.submittedBy._id.toString() !== req.user._id.toString()) {
-      return next(new ApiError(403, 'Not authorized to view this expense'));
+      return next(createError(403, 'Not authorized to view this expense'));
     }
 
     res.json(expense);
   } catch (error) {
     console.error('Error fetching expense:', error);
-    next(new ApiError(error.statusCode || 500, error.message || 'Error fetching expense'));
+    next(createError(error.statusCode || 500, error.message || 'Error fetching expense'));
   }
 };
 
@@ -284,29 +283,29 @@ const deleteExpense = async (req, res, next) => {
   try {
     // Check if user is authenticated
     if (!req.user || !req.user._id) {
-      return next(new ApiError(401, 'User not authenticated'));
+      return next(createError(401, 'User not authenticated'));
     }
 
     const expense = await Expense.findById(req.params.id);
     if (!expense) {
-      return next(new ApiError(404, 'Expense not found'));
+      return next(createError(404, 'Expense not found'));
     }
 
     // Check if user has permission to delete
     if (expense.submittedBy.toString() !== req.user._id.toString()) {
-      return next(new ApiError(403, 'Not authorized to delete this expense'));
+      return next(createError(403, 'Not authorized to delete this expense'));
     }
 
     // Can only delete if status is Pending
     if (expense.status !== 'Pending') {
-      return next(new ApiError(400, 'Cannot delete expense that is already processed'));
+      return next(createError(400, 'Cannot delete expense that is already processed'));
     }
 
     await Expense.findByIdAndDelete(req.params.id);
     res.status(200).json({ message: 'Expense deleted successfully' });
   } catch (error) {
     console.error('Error deleting expense:', error);
-    next(new ApiError(error.statusCode || 500, error.message || 'Error deleting expense'));
+    next(createError(error.statusCode || 500, error.message || 'Error deleting expense'));
   }
 };
 
@@ -315,22 +314,22 @@ const processExpense = async (req, res, next) => {
   try {
     const { status, notes } = req.body;
     if (!['Approved', 'Rejected'].includes(status)) {
-      return next(new ApiError(400, 'Invalid status'));
+      return next(createError(400, 'Invalid status'));
     }
 
     const expense = await Expense.findById(req.params.id);
     if (!expense) {
-      return next(new ApiError(404, 'Expense not found'));
+      return next(createError(404, 'Expense not found'));
     }
 
     // Check if user has permission to approve/reject
     if (req.user.role !== 'admin' && req.user.role !== 'manager') {
-      return next(new ApiError(403, 'Not authorized to process expenses'));
+      return next(createError(403, 'Not authorized to process expenses'));
     }
 
     // Can only process if status is Pending
     if (expense.status !== 'Pending') {
-      return next(new ApiError(400, 'Expense is already processed'));
+      return next(createError(400, 'Expense is already processed'));
     }
 
     expense.status = status;
@@ -342,7 +341,7 @@ const processExpense = async (req, res, next) => {
     res.json(expense);
   } catch (error) {
     console.error('Error processing expense:', error);
-    next(new ApiError(error.statusCode || 500, error.message || 'Error processing expense'));
+    next(createError(error.statusCode || 500, error.message || 'Error processing expense'));
   }
 };
 
@@ -370,7 +369,7 @@ const getExpenseStats = async (req, res, next) => {
     res.json(stats);
   } catch (error) {
     console.error('Error getting expense stats:', error);
-    next(new ApiError(error.statusCode || 500, error.message || 'Error getting expense statistics'));
+      next(createError(error.statusCode || 500, error.message || 'Error getting expense statistics'));
   }
 };
 

@@ -1,7 +1,6 @@
 const Leave = require('./leave.model');
 const Employee = require('../employee/employee.model');
 const Attendance = require('../attendance/attendance.model');
-const AppError = require('../../../utils/AppError');
 const catchAsync = require('../../../utils/catchAsync');
 
 // Get all leave requests
@@ -82,7 +81,7 @@ exports.getLeave = catchAsync(async (req, res) => {
     })
 
   if (!leave) {
-    throw new AppError('No leave request found with that ID', 404);
+    throw createError(404, 'No leave request found with that ID');
   }
 
   res.status(200).json({
@@ -112,7 +111,7 @@ exports.createLeave = catchAsync(async (req, res) => {
   });
 
   if (overlappingLeave) {
-    throw new AppError('Employee already has a leave request for this period', 400);
+    throw createError(400, 'Employee already has a leave request for this period');
   }
 
   const leave = await Leave.create({
@@ -159,7 +158,7 @@ exports.updateLeave = catchAsync(async (req, res) => {
   });
 
   if (!leave) {
-    throw new AppError('No leave request found with that ID', 404);
+    throw createError(404, 'No leave request found with that ID');
   }
 
   res.status(200).json({
@@ -173,7 +172,7 @@ exports.deleteLeave = catchAsync(async (req, res) => {
   const leave = await Leave.findById(req.params.id);
 
   if (!leave) {
-    throw new AppError('No leave request found with that ID', 404);
+    throw createError(404, 'No leave request found with that ID');
   }
 
   // Only allow deletion of pending requests
@@ -198,7 +197,7 @@ exports.reviewLeave = catchAsync(async (req, res) => {
 
     // Validate required fields
     if (!status || !reviewNotes) {
-      throw new AppError('Status and review notes are required', 400);
+      throw createError(400, 'Status and review notes are required');
     }
 
     // Normalize status to match the model's enum values
@@ -206,7 +205,7 @@ exports.reviewLeave = catchAsync(async (req, res) => {
     console.log('Normalized status:', normalizedStatus);
     
     if (!['Approved', 'Rejected'].includes(normalizedStatus)) {
-      throw new AppError('Invalid status. Status must be either Approved or Rejected', 400);
+      throw createError(400, 'Invalid status. Status must be either Approved or Rejected');
     }
 
     // Get leave with employee details
@@ -217,7 +216,7 @@ exports.reviewLeave = catchAsync(async (req, res) => {
       });
 
     if (!leave) {
-      throw new AppError('No leave request found with that ID', 404);
+      throw createError(404, 'No leave request found with that ID');
     }
 
     console.log('Leave request found:', {
@@ -231,14 +230,14 @@ exports.reviewLeave = catchAsync(async (req, res) => {
     });
 
     if (!leave.employee || !leave.employee._id) {
-      throw new AppError('Leave request has no associated employee', 400);
+      throw createError(400, 'Leave request has no associated employee');
     }
 
     // Check if already reviewed
     if (leave.status !== 'Pending') {
       // If the status is being changed to the same value, throw error
       if (leave.status === normalizedStatus) {
-        throw new AppError(`This leave request has already been ${leave.status.toLowerCase()}`, 400);
+        throw createError(400, `This leave request has already been ${leave.status.toLowerCase()}`);
       }
       
       // If changing from Approved to Rejected, delete any existing attendance records
@@ -277,7 +276,7 @@ exports.reviewLeave = catchAsync(async (req, res) => {
         console.log('Original dates:', { startDate, endDate });
 
         if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-          throw new AppError('Invalid leave dates', 400);
+          throw createError(400, 'Invalid leave dates');
         }
 
         // Set time to start and end of days
@@ -380,12 +379,12 @@ exports.reviewLeave = catchAsync(async (req, res) => {
                 _id: { $in: createdRecords.map(record => record._id) }
               });
             }
-            throw new AppError(`Failed to create attendance record: ${err.message}`, 500);
+            throw createError(500, `Failed to create attendance record: ${err.message}`);
           }
         }
 
         if (createdRecords.length === 0) {
-          throw new AppError('Failed to create any attendance records', 500);
+          throw createError(500, 'Failed to create any attendance records');
         }
 
         console.log(`Successfully created ${createdRecords.length} attendance records`);
@@ -399,7 +398,7 @@ exports.reviewLeave = catchAsync(async (req, res) => {
           error: error.message,
           stack: error.stack
         });
-        throw new AppError(`Failed to create attendance records: ${error.message}`, 500);
+            throw createError(500, `Failed to create attendance records: ${error.message}`);
       }
     }
 

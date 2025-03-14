@@ -1,215 +1,396 @@
-const User = require('../user/user.model');
-const  Employee  = require('../hrm/employee/employee.model');
-const catchAsync = require('../../utils/catchAsync');
-const ApiError = require('../../utils/ApiError');
 const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
+const Employee = require('../hrm/employee/employee.model');
 const Role = require('../role/role.model');
+const { JWT_SECRET, JWT_EXPIRES_IN } = require('../../config/env');
+const { logger } = require('../../middleware/logger');
+const crypto = require('crypto');
 
-const signToken = (id, role) => {
-  return jwt.sign(
-    { id, role },
-    process.env.JWT_SECRET,
-    { expiresIn: process.env.JWT_EXPIRES_IN }
-  );
-};
-
-// const createSendToken = async (user, statusCode, res) => {
-
-//   const roles = await Role.find({ _id: { $in: user.roles } }).select('name');
-//   console.log('User roles:', user.roles);
-//   const roleNames = roles.map(role => role.name);
-
-//   const token = signToken(user._id, roleNames);
-//   console.log(roleNames, "role name")
-//   // Remove password from output
-//   user.password = undefined;
-
-//   res.status(200).json({
-//     status: 'success',
-//     data: {
-//       user,
-//       token
-//     }
-//   });
-// };
-
-const createSendToken = async (employee, statusCode, res) => {
+/**
+ * @desc    Login user
+ * @route   POST /api/v1/auth/login
+ * @access  Public
+ */
+exports.login = async (req, res) => {
   try {
-    // Find employee and populate the role
-    employee = await Employee.findById(employee._id)
-      .populate({
-        path: 'role.role_type',
-        select: 'name'
+    const { email, password } = req.body;
+
+    // Validate email and password
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide email and password'
       });
-    
-    console.log('Employee:', employee);
-    console.log('Employee role:', JSON.stringify(employee.role, null, 2));
-    
-    // Get the role name from the populated role_type
-    let roleName = 'Employee'; // Default role
-    
-    if (employee.role && employee.role.length > 0) {
-      // If role is an array of strings, use the first one
-      if (typeof employee.role[0] === 'string') {
-        roleName = employee.role[0];
-      }
-      // If role is an array of objects with role_type, use the name
-      else if (employee.role[0].role_type && employee.role[0].role_type.name) {
-        roleName = employee.role[0].role_type.name;
-      }
     }
+
+    // Check for user
+    const employee = await Employee.findOne({ email }).select('+password');
+
+    if (!employee) {
+      logger.warn(`Login attempt with invalid email: ${email}`);
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid credentials'
+      });
+    }
+
+    // Check if employee is active
+    if (employee.status !== 'active') {
+      logger.warn(`Login attempt by inactive employee: ${email}`);
+      return res.status(401).json({
+        success: false,
+        message: 'Your account is not active. Please contact administrator.'
+      });
+    }
+
+    // Check if password matches
+    const isMatch = await employee.matchPassword(password);
     
-    console.log('Role name being set:', roleName);
-    
-    // Create token with the role name
-    const token = signToken(employee._id, roleName);
-    
-    // Remove sensitive data
-    employee.password = undefined;
-    
-    res.status(statusCode).json({
-      status: 'success',
-      data: {
-        employee: {
-          ...employee.toObject(),
-          role: roleName // Send the role name in the response
-        },
-        token,
-      },
+
+    if (!isMatch) {
+      logger.warn(`Login attempt with invalid password for: ${email}`);
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid credentials'
+      });
+    }
+
+    // Create token
+    const token = generateToken(employee._id);
+
+    // Get role details
+    let roleDetails = [];
+    if (employee.role && employee.role.length > 0) {
+      const roleIds = employee.role.map(r => r.role_type);
+      const roles = await Role.find({ _id: { $in: roleIds } });
+      roleDetails = roles.map(role => ({
+        id: role._id,
+        name: role.name
+      }));
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Login successful',
+      token,
+      user: {
+        id: employee._id,
+        employeeId: employee.employeeId,
+        firstName: employee.firstName,
+        lastName: employee.lastName,
+        email: employee.email,
+        profilePicture: employee.profilePicture,
+        roles: roleDetails,
+        department: employee.department,
+        position: employee.position
+      }
     });
   } catch (error) {
-    console.error('Error in createSendToken:', error);
-    throw error;
+    logger.error(`Error in login: ${error.message}`, { stack: error.stack });
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
   }
 };
 
 /**
- * Register a new user
+ * @desc    Register new employee
+ * @route   POST /api/v1/auth/register
+ * @access  Private (Admin only)
  */
-exports.register = catchAsync(async (req, res, next) => {
-  const { email, password, username, role } = req.body;
+exports.register = async (req, res) => {
+  try {
+    const {
+      firstName,
+      lastName,
+      email,
+      password,
+      employeeId,
+      department,
+      position,
+      phone,
+      joiningDate,
+      salary,
+      roles
+    } = req.body;
 
-  // Check if user already exists
-  const existingUser = await User.findOne({ email });
-  if (existingUser) {
-    return next(new ApiError('Email already registered', 400));
-  }
+    // Check if employee already exists
+    const existingEmployee = await Employee.findOne({
+      $or: [{ email }, { employeeId }]
+    });
 
-  // Create new user
-  const user = await User.create({
-    email,
-    password,
-    username,
-    role: role || 'employee'
-  });
-
-  createSendToken(user, 201, res);
-});
-
-/**
- * Login user or employee
- */
-exports.login = catchAsync(async (req, res, next) => {
-  const { email, password } = req.body;
-console.log(req.body, "body");
-  // Check if email and password exist
-  if (!email || !password) {
-    return next(new ApiError('Please provide email and password', 400));
-  }
-
-  // First try to find a user
-  let user = await User.findOne({ email }).select('+password');
-  let isPasswordValid = false;
-
-  // If user found, verify password using comparePassword
-  if (user) {
-    isPasswordValid = await user.comparePassword(password);
-  } else {
-    // If no user found, try to find an employee
-    user = await Employee.findOne({ email }).select('+password');
-    if (user) {
-      isPasswordValid = await user.matchPassword(password);
+    if (existingEmployee) {
+      return res.status(400).json({
+        success: false,
+        message: 'Employee with this email or ID already exists'
+      });
     }
-  }
 
-  // If neither user nor employee found, or password doesn't match
-  if (!user || !isPasswordValid) {
-    console.error('Incorrect email or password');
-    return next(new ApiError('Incorrect email or password', 401));
-  }
+    // Validate roles if provided
+    let roleObjects = [];
+    if (roles && roles.length > 0) {
+      const validRoles = await Role.find({ _id: { $in: roles } });
 
-  createSendToken(user, 200, res);
-});
+      if (validRoles.length !== roles.length) {
+        return res.status(400).json({
+          success: false,
+          message: 'One or more role IDs are invalid'
+        });
+      }
 
-/**
- * Get current user profile
- */
-exports.getProfile = catchAsync(async (req, res, next) => {
-  const user = await User.findById(req.user.id);
-  if (!user) {
-    return next(new ApiError('User not found', 404));
-  }
-
-  res.status(200).json({
-    status: 'success',
-    data: {
-      user
+      roleObjects = roles.map(roleId => {
+        const role = validRoles.find(r => r._id.toString() === roleId.toString());
+        return {
+          type: role.name,
+          role_type: roleId
+        };
+      });
+    } else {
+      // Default to basic employee role if none provided
+      const defaultRole = await Role.findOne({ name: 'Employee' });
+      if (defaultRole) {
+        roleObjects = [{
+          type: 'Employee',
+          role_type: defaultRole._id
+        }];
+      }
     }
-  });
-});
+
+    // Create employee
+    const employee = await Employee.create({
+      firstName,
+      lastName,
+      email,
+      password,
+      employeeId,
+      department,
+      position,
+      phone,
+      joiningDate: joiningDate || new Date(),
+      salary,
+      role: roleObjects,
+      status: 'active'
+    });
+
+    // Get role details for response
+    const roleIds = employee.role.map(r => r.role_type);
+    const roleDetails = await Role.find({ _id: { $in: roleIds } });
+    const rolesForResponse = roleDetails.map(role => ({
+      id: role._id,
+      name: role.name
+    }));
+
+    res.status(201).json({
+      success: true,
+      message: 'Employee registered successfully',
+      data: {
+        id: employee._id,
+        employeeId: employee.employeeId,
+        firstName: employee.firstName,
+        lastName: employee.lastName,
+        email: employee.email,
+        roles: rolesForResponse
+      }
+    });
+  } catch (error) {
+    logger.error(`Error in register: ${error.message}`, { stack: error.stack });
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
 
 /**
- * Update user profile
+ * @desc    Get current logged in user
+ * @route   GET /api/v1/auth/me
+ * @access  Private
  */
-exports.updateProfile = catchAsync(async (req, res, next) => {
-  // 1) Create error if user POSTs password data
-  if (req.body.password || req.body.passwordConfirm) {
-    return next(new AppError('This route is not for password updates. Please use /updatePassword', 400));
-  }
+exports.getMe = async (req, res) => {
+  try {
+    const employee = await Employee.findById(req.user.id)
+      .populate('department', 'name')
+      .populate('position', 'name');
 
-  // 2) Filter out unwanted fields that are not allowed to be updated
-  const filteredBody = filterObj(req.body, 'name', 'email');
-
-  // 3) Update user document
-  const updatedUser = await User.findByIdAndUpdate(req.user.id, filteredBody, {
-    new: true,
-    runValidators: true
-  });
-
-  res.status(200).json({
-    status: 'success',
-    data: {
-      user: updatedUser
+    if (!employee) {
+      return res.status(404).json({
+        success: false,
+        message: 'Employee not found'
+      });
     }
-  });
-});
 
-/**
- * Update user password
- */
-exports.updatePassword = catchAsync(async (req, res, next) => {
-  // 1) Get user from collection
-  const user = await User.findById(req.user.id).select('+password');
+    // Get role details
+    let roleDetails = [];
+    if (employee.role && employee.role.length > 0) {
+      const roleIds = employee.role.map(r => r.role_type);
+      const roles = await Role.find({ _id: { $in: roleIds } });
+      roleDetails = roles.map(role => ({
+        id: role._id,
+        name: role.name
+      }));
+    }
 
-  // 2) Check if POSTed current password is correct
-  if (!(await user.comparePassword(req.body.currentPassword))) {
-    return next(new AppError('Your current password is wrong', 401));
+    res.status(200).json({
+      success: true,
+      data: {
+        id: employee._id,
+        employeeId: employee.employeeId,
+        firstName: employee.firstName,
+        lastName: employee.lastName,
+        fullName: employee.fullName,
+        email: employee.email,
+        profilePicture: employee.profilePicture,
+        phone: employee.phone,
+        department: employee.department,
+        position: employee.position,
+        joiningDate: employee.joiningDate,
+        status: employee.status,
+        roles: roleDetails
+      }
+    });
+  } catch (error) {
+    logger.error(`Error in getMe: ${error.message}`, { stack: error.stack });
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
   }
-
-  // 3) If so, update password
-  user.password = req.body.newPassword;
-  await user.save();
-
-  // 4) Log user in, send JWT
-  createSendToken(user, 200, res);
-});
+};
 
 /**
- * Logout user
+ * @desc    Update password
+ * @route   PUT /api/v1/auth/update-password
+ * @access  Private
  */
-exports.logout = catchAsync(async (req, res) => {
+exports.updatePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide current and new password'
+      });
+    }
+
+    // Check current password
+    const employee = await Employee.findById(req.user.id).select('+password');
+
+    if (!employee) {
+      return res.status(404).json({
+        success: false,
+        message: 'Employee not found'
+      });
+    }
+
+    const isMatch = await employee.matchPassword(currentPassword);
+
+    if (!isMatch) {
+      return res.status(401).json({
+        success: false,
+        message: 'Current password is incorrect'
+      });
+    }
+
+    // Update password
+    employee.password = newPassword;
+    await employee.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Password updated successfully'
+    });
+  } catch (error) {
+    logger.error(`Error in updatePassword: ${error.message}`, { stack: error.stack });
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * @desc    Forgot password
+ * @route   POST /api/v1/auth/forgot-password
+ * @access  Public
+ */
+exports.forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide an email address'
+      });
+    }
+
+    const employee = await Employee.findOne({ email });
+
+    if (!employee) {
+      return res.status(404).json({
+        success: false,
+        message: 'No employee found with that email'
+      });
+    }
+
+    // Generate reset token (would typically send via email)
+    const resetToken = generateResetToken();
+
+    // Store hashed token in database with expiry
+    employee.resetPasswordToken = crypto
+      .createHash('sha256')
+      .update(resetToken)
+      .digest('hex');
+
+    employee.resetPasswordExpire = Date.now() + 10 * 60 * 1000; // 10 minutes
+
+    await employee.save({ validateBeforeSave: false });
+
+    // In a real application, you would send an email with the reset link
+    // For this example, we'll just return the token in the response
+    res.status(200).json({
+      success: true,
+      message: 'Password reset token generated',
+      resetToken // In production, don't return this directly
+    });
+  } catch (error) {
+    logger.error(`Error in forgotPassword: ${error.message}`, { stack: error.stack });
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * @desc    Logout user / clear cookie
+ * @route   GET /api/v1/auth/logout
+ * @access  Private
+ */
+exports.logout = (req, res) => {
   res.status(200).json({
-    status: 'success',
-    message: 'Logged out successfully'
+    success: true,
+    message: 'Successfully logged out'
   });
-}); 
+};
+
+// Helper function to generate JWT token
+const generateToken = (id) => {
+  return jwt.sign({ id }, JWT_SECRET, {
+    expiresIn: JWT_EXPIRES_IN
+  });
+};
+
+// Helper function to generate reset token
+const generateResetToken = () => {
+  // Generate random bytes
+  const resetToken = crypto.randomBytes(20).toString('hex');
+  return resetToken;
+};

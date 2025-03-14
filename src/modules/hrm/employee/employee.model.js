@@ -151,7 +151,10 @@ const employeeSchema = new mongoose.Schema(
     },
     role: [
       {
-        type: String,
+        type: {
+          type: String,
+          required: true
+        },
         role_type: {
           type: mongoose.Schema.Types.ObjectId,
           ref: "Role",
@@ -192,11 +195,14 @@ employeeSchema.virtual("leaves", {
 
 // Encrypt password using bcrypt
 employeeSchema.pre("save", async function (next) {
-  if (!this.isModified("password")) {
-    next();
+  // Skip hashing if password hasn't changed or if we have a custom flag to skip
+  if (!this.isModified("password") || this.$__skipPasswordHashing) {
+    return next();
   }
+
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);
+  next();
 });
 
 // Match password

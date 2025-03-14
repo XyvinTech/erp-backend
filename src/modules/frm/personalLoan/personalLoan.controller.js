@@ -1,8 +1,7 @@
 const PersonalLoan = require('./personalLoan.model');
 const { validatePersonalLoan } = require('../validations/personalLoanValidation');
-const ApiError = require('../../../utils/ApiError');
 const { uploadFile } = require('../../../utils/fileUpload');
-
+const { createError } = require('../../../utils/errors');
 // Create new personal loan application
 const createPersonalLoan = async (req, res) => {
   try {
@@ -34,7 +33,7 @@ const createPersonalLoan = async (req, res) => {
     // Validate request body
     const { error } = validatePersonalLoan(loanData);
     if (error) {
-      throw new ApiError(400, error.details[0].message);
+      throw createError(400, error.details[0].message);       
     }
 
     const loan = new PersonalLoan({
@@ -82,7 +81,7 @@ const getPersonalLoans = async (req, res) => {
 
     res.json(loans);
   } catch (error) {
-    throw new ApiError(error.statusCode || 500, error.message);
+    throw createError(error.statusCode || 500, error.message);
   }
 };
 
@@ -93,11 +92,11 @@ const getPersonalLoanById = async (req, res) => {
       .populate('applicant', 'name email')
       .populate('approvedBy', 'name email');
 
-    if (!loan) throw new ApiError(404, 'Personal loan not found');
+    if (!loan) throw createError(404, 'Personal loan not found');
 
     res.json(loan);
   } catch (error) {
-    throw new ApiError(error.statusCode || 500, error.message);
+    throw createError(error.statusCode || 500, error.message);
   }
 };
 
@@ -105,7 +104,7 @@ const getPersonalLoanById = async (req, res) => {
 const updatePersonalLoan = async (req, res) => {
   try {
     const loan = await PersonalLoan.findById(req.params.id);
-    if (!loan) throw new ApiError(404, 'Personal loan not found');
+    if (!loan) throw createError(404, 'Personal loan not found');
 
     let loanData;
     let documents = [...loan.documents];
@@ -133,7 +132,7 @@ const updatePersonalLoan = async (req, res) => {
 
     // Validate request body
     const { error } = validatePersonalLoan(loanData);
-    if (error) throw new ApiError(400, error.details[0].message);
+    if (error) throw createError(400, error.details[0].message);
 
     // Update loan with new data and documents
     Object.assign(loan, { ...loanData, documents });
@@ -142,7 +141,7 @@ const updatePersonalLoan = async (req, res) => {
     res.json(loan);
   } catch (error) {
     console.error('Error updating personal loan:', error);
-    throw new ApiError(error.statusCode || 500, error.message);
+    throw createError(error.statusCode || 500, error.message);
   }
 };
 
@@ -151,11 +150,11 @@ const processLoanApplication = async (req, res) => {
   try {
     const { status, notes } = req.body;
     if (!['Approved', 'Rejected'].includes(status)) {
-      throw new ApiError(400, 'Invalid status');
+      throw createError(400, 'Invalid status');
     }
 
     const loan = await PersonalLoan.findById(req.params.id);
-    if (!loan) throw new ApiError(404, 'Personal loan not found');
+    if (!loan) throw createError(404, 'Personal loan not found');
 
     loan.status = status;
     loan.approvedBy = req.user._id;
@@ -169,7 +168,7 @@ const processLoanApplication = async (req, res) => {
     await loan.save();
     res.json(loan);
   } catch (error) {
-    throw new ApiError(error.statusCode || 500, error.message);
+    throw createError(error.statusCode || 500, error.message);
   }
 };
 
@@ -179,9 +178,9 @@ const recordPayment = async (req, res) => {
     const { amount, date } = req.body;
     const loan = await PersonalLoan.findById(req.params.id);
 
-    if (!loan) throw new ApiError(404, 'Personal loan not found');
-    if (loan.status !== 'Approved') throw new ApiError(400, 'Cannot record payment for unapproved loan');
-    if (amount > loan.remainingBalance) throw new ApiError(400, 'Payment amount exceeds remaining balance');
+    if (!loan) throw createError(404, 'Personal loan not found');
+    if (loan.status !== 'Approved') throw createError(400, 'Cannot record payment for unapproved loan');
+    if (amount > loan.remainingBalance) throw createError(400, 'Payment amount exceeds remaining balance');
 
     // Add payment record
     loan.payments.push({
@@ -202,7 +201,7 @@ const recordPayment = async (req, res) => {
     await loan.save();
     res.json(loan);
   } catch (error) {
-    throw new ApiError(error.statusCode || 500, error.message);
+      throw createError(error.statusCode || 500, error.message);
   }
 };
 
@@ -229,7 +228,7 @@ const getLoanStats = async (req, res) => {
       count: 0
     });
   } catch (error) {
-    throw new ApiError(error.statusCode || 500, error.message);
+    throw createError(error.statusCode || 500, error.message);
   }
 };
 
@@ -238,12 +237,12 @@ const deletePersonalLoan = async (req, res) => {
   try {
     const loan = await PersonalLoan.findById(req.params.id);
     if (!loan) {
-      throw new ApiError(404, 'Personal loan not found');
+      throw createError(404, 'Personal loan not found');
     }
 
     // Only allow deletion of pending loans
     if (loan.status !== 'Pending') {
-      throw new ApiError(400, 'Cannot delete a loan that has been processed');
+      throw createError(400, 'Cannot delete a loan that has been processed');
     }
 
     await PersonalLoan.findByIdAndDelete(req.params.id);
