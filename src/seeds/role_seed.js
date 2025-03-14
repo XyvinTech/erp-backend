@@ -1,4 +1,4 @@
-const Role = require('../src/modules/role/role.model');
+const Role = require('../modules/role/role.model');
 
 const seedRoles = async () => {
     try {

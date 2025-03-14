@@ -1,6 +1,6 @@
-const Employee = require('../src/modules/hrm/employee/employee.model');
+const Employee = require('../modules/hrm/employee/employee.model');
 const bcrypt = require('bcryptjs');
-const Role = require('../src/modules/role/role.model');
+const Role = require('../modules/role/role.model');
 const mongoose = require('mongoose');
 
 const seedEmployees = async () => {

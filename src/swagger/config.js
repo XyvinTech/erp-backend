@@ -1,13 +1,15 @@
 const swaggerJsDoc = require('swagger-jsdoc');
-const swaggerUi = require('swagger-ui-express');
-const { version } = require('../package.json');
+const env = require('../config/env');
+
+
+
 
 const options = {
   definition: {
     openapi: '3.0.0',
     info: {
       title: 'Xyvin ERP API Documentation',
-      version: version,
+      version: '1.0.0',
       description: 'API documentation for Xyvin ERP system',
       contact: {
         name: 'API Support',
@@ -20,7 +22,7 @@ const options = {
     },
     servers: [
       {
-        url: `http://localhost:${process.env.PORT || 5000}`,
+        url: `http://localhost:${ env.PORT || 5000}`,
         description: 'Development server'
       },
       {
@@ -89,25 +91,19 @@ const options = {
   ]
 };
 
-const swaggerSpec = swaggerJsDoc(options);
-
-const setupSwagger = (app) => {
-  // Swagger UI
-  app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
-    explorer: true,
-    customCss: '.swagger-ui .topbar { display: none }',
-    customSiteTitle: 'Xyvin ERP API Documentation',
-    swaggerOptions: {
-      persistAuthorization: true,
-      displayRequestDuration: true
-    }
-  }));
-
-  // Serve swagger spec as JSON
-  app.get('/swagger.json', (req, res) => {
-    res.setHeader('Content-Type', 'application/json');
-    res.send(swaggerSpec);
-  });
+const swagger_options = {
+  swaggerOptions: {
+    docExpansion: "none",
+    filter: true,
+    tagsSorter: "alpha",
+    operationsSorter: "alpha",
+    
+  },
 };
 
-module.exports = { setupSwagger, swaggerSpec }; 
+const swaggerSpec = swaggerJsDoc(options);
+
+
+
+
+module.exports = { swaggerSpec , swagger_options }; 
