@@ -48,12 +48,7 @@ app.use(morgan('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-runSeeds().then(() => {
-  console.log('Seeds executed successfully');
-}).catch((error) => {
-  console.error('Error seeding:', error);
-  process.exit(1);
-});
+
 // Serve static files from the public directory with CORS enabled
 app.use('/public', (req, res, next) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -123,6 +118,12 @@ const startServer = async () => {
     // Connect to MongoDB
     await connectDB();
     
+    runSeeds().then(() => {
+      console.log('Seeds executed successfully');
+    }).catch((error) => {
+      console.error('Error seeding:', error);
+      process.exit(1);
+    });
     // Start the server
     app.listen(PORT, HOST, () => {
       console.log(`Server running at http://${HOST}:${PORT}`);
