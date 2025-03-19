@@ -59,12 +59,12 @@ const personalLoanSchema = new mongoose.Schema({
   },
   applicant: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
+    ref: 'Employee',
     required: true
   },
   approvedBy: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User'
+    ref: 'Employee'
   },
   approvalDate: {
     type: Date

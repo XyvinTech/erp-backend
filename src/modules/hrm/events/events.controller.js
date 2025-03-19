@@ -46,7 +46,7 @@ const getEvents = async (req, res, next) => {
 };
 
 // @desc    Get single event
-// @route   GET /api/hrm/events/:id
+// @route   GET /hrm/events/:id
 // @access  Private
 const getEvent = async (req, res, next) => {
   try {

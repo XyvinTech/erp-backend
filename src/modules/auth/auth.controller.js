@@ -14,6 +14,7 @@ const crypto = require('crypto');
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
+    console.log('Login attempt for:', email); // Debug log
 
     // Validate email and password
     if (!email || !password) {
@@ -25,6 +26,7 @@ exports.login = async (req, res) => {
 
     // Check for user
     const employee = await Employee.findOne({ email }).select('+password');
+    console.log('Employee found:', employee ? 'Yes' : 'No'); // Debug log
 
     if (!employee) {
       logger.warn(`Login attempt with invalid email: ${email}`);
@@ -45,7 +47,7 @@ exports.login = async (req, res) => {
 
     // Check if password matches
     const isMatch = await employee.matchPassword(password);
-    
+    console.log('Password match:', isMatch ? 'Yes' : 'No'); // Debug log
 
     if (!isMatch) {
       logger.warn(`Login attempt with invalid password for: ${email}`);
@@ -56,7 +58,7 @@ exports.login = async (req, res) => {
     }
 
     // Create token
-    const token = generateToken(employee._id);
+    const token = await generateToken(employee._id);
 
     // Get role details
     let roleDetails = [];
@@ -86,6 +88,7 @@ exports.login = async (req, res) => {
       }
     });
   } catch (error) {
+    console.error('Login error:', error);
     logger.error(`Error in login: ${error.message}`, { stack: error.stack });
     res.status(500).json({
       success: false,
@@ -382,10 +385,42 @@ exports.logout = (req, res) => {
 };
 
 // Helper function to generate JWT token
-const generateToken = (id) => {
-  return jwt.sign({ id }, JWT_SECRET, {
-    expiresIn: JWT_EXPIRES_IN
-  });
+const generateToken = async (id) => {
+  try {
+    // Get employee with role information
+    const employee = await Employee.findById(id)
+      .populate({
+        path: 'role.role_type',
+        model: 'Role',
+        select: 'name description'
+      });
+
+    if (!employee) {
+      throw new Error('Employee not found');
+    }
+
+    // Extract role information
+    const roles = employee.role.map(roleObj => ({
+      type: roleObj.type,
+      role_type: roleObj.role_type._id,
+      name: roleObj.role_type.name
+    }));
+ console.log(roles, "role")
+    // Create token with role information
+    return jwt.sign(
+      { 
+        id,
+        roles 
+      }, 
+      JWT_SECRET, 
+      {
+        expiresIn: JWT_EXPIRES_IN
+      }
+    );
+  } catch (error) {
+    console.error('Error generating token:', error);
+    throw error;
+  }
 };
 
 // Helper function to generate reset token

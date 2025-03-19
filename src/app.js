@@ -12,6 +12,9 @@ const { runDatabaseSeeds } = require("./config/seed");
 const { setupGracefulShutdown } = require("./config/graceful_shutdown");
 const { logger } = require("./middleware/logger");  
 const { registerErrorHandlers } = require("./config/registerErrorHandlers");
+const cors = require('cors');
+const express = require('express');
+
 /**
  * Initialize and start the server
  */
@@ -33,6 +36,15 @@ async function startServer() {
 
     // Register routes
     initializeRoutes(app, BASE_PATH);
+
+    // Add CORS middleware
+    app.use(cors({
+      origin: ['http://localhost:3000/api.v1', 'http://localhost:3001/api.v1'],
+      credentials: true
+    }));
+
+    // Also ensure you have body-parser or express.json() middleware
+    app.use(express.json());
 
     // Start the server
     const server = app.listen(PORT, () => {

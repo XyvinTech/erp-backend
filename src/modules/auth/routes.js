@@ -4,6 +4,7 @@ const controller = require('./auth.controller');
 const { validateLogin, validateRegister, validatePasswordUpdate } = require('./validation');
 const { protect, authorize } = require('../../middleware/authMiddleware');
 
+// router.use(authorize('ERP System Administrator','IT Manager','Project Manager','HR Manager','Admin'))
 // Public routes
 router.post('/login', validateLogin, controller.login);
 router.post('/forgot-password', controller.forgotPassword);

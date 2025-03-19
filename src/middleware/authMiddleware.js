@@ -5,6 +5,7 @@ const { JWT_SECRET } = require('../config/env');
 
 exports.protect = async (req, res, next) => {
   try {
+    console.log(req.headers.authorization, "header")
     let token;
 
     // Check if token exists in headers
@@ -34,7 +35,9 @@ exports.protect = async (req, res, next) => {
         res.status(401).send('User not found')
       }
 
-      console.log('User roles:', req.user.role);
+      // Add roles from token to user object
+      req.user.tokenRoles = decoded.roles;
+      console.log('User roles from token:', req.user.tokenRoles);
       next();
     } catch (error) {
       console.error('Token verification error:', error);
