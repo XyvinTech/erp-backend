@@ -39,7 +39,7 @@ async function startServer() {
 
     // Add CORS middleware
     app.use(cors({
-      origin: ['http://localhost:3000/api.v1', 'http://localhost:3001/api.v1'],
+      origin: ['http://localhost:3000', 'http://localhost:3001'],
       credentials: true
     }));
 

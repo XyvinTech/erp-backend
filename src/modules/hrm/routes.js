@@ -27,4 +27,7 @@ router.use('/leaves', require('./leave/leave.routes'));
 // Events routes
 router.use('/events', require('./events/events.route'));
 
+// Payroll routes
+router.use('/payroll', require('./payroll/payroll.routes'));
+
 module.exports = router; 

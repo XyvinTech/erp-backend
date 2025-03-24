@@ -51,6 +51,8 @@ function initializeRoutes(app, base_path) {
     app.use(`${base_path}/auth`, require('../modules/auth/index'));
     app.use(`${base_path}/hrm`, require('../modules/hrm/routes'));
     app.use(`${base_path}/frm`, require('../modules/frm/routes'));
+    app.use(`${base_path}/clients`, require('../modules/client/client.routes'));
+    app.use(`${base_path}/projects`, require('../modules/project/project.routes'));
 
 }
 module.exports = {

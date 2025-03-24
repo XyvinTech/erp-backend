@@ -22,6 +22,10 @@ router.route('/')
   .get(getAllLeaves)
   .post(createLeave);
 
+// Route for getting current user's leaves
+router.route('/my')
+  .get(getAllLeaves);
+
 router.route('/:id')
   .get(getLeave)
   .patch( updateLeave)
