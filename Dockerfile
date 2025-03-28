@@ -15,7 +15,7 @@ WORKDIR /usr/src/app
 COPY package*.json ./
 
 # Install all dependencies (including dev dependencies)
-RUN npm install
+RUN npm ci --omit=dev
 
 # Copy the rest of the code
 COPY . .
