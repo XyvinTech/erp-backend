@@ -6,35 +6,41 @@
 
 # Want to help us make this template better? Share your feedback here: https://forms.gle/ybq9Krt8jtBL3iCk7
 
-ARG NODE_VERSION=20.17.0
-
-FROM node:${NODE_VERSION}-alpine
-
-# Use production node environment by default.
-ENV NODE_ENV production
+# Build stage
+FROM node:20.17.0-alpine AS build
 
 WORKDIR /usr/src/app
 
-# Copy package files first
+# Copy package.json and package-lock.json
 COPY package*.json ./
 
-# Install dependencies including production ones
-RUN npm ci
+# Install all dependencies (including dev dependencies)
+RUN npm install
 
-# Copy the rest of the source files into the image.
+# Copy the rest of the code
 COPY . .
 
-# Create and use non-root user
+# Production stage
+FROM node:20.17.0-alpine
+
+ENV NODE_ENV=production
+
+WORKDIR /usr/src/app
+
+# Copy everything from the project
+COPY . .
+
+# Create and use a non-root user
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 RUN chown -R appuser:appgroup /usr/src/app
 USER appuser
 
-# Expose the port that the application listens on.
+# Expose the port
 EXPOSE 3001
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
     CMD wget --quiet --tries=1 --spider http://localhost:3001/health || exit 1
 
-# Run the application in production mode
+# Start the app
 CMD ["npm", "start"]

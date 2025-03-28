@@ -5,12 +5,12 @@
 
 const clc = require("cli-color");
 const { PORT, NODE_ENV, BASE_PATH } = require("./config/env");
-const {initializeExpress} = require("./config/express");
-const {initializeRoutes} = require("./config/routes");
+const { initializeExpress } = require("./config/express");
+const { initializeRoutes } = require("./config/routes");
 const { connectDatabase, isDatabaseConnected } = require("./config/database");
 const { runDatabaseSeeds } = require("./config/seed");
 const { setupGracefulShutdown } = require("./config/graceful_shutdown");
-const { logger } = require("./middleware/logger");  
+const { logger } = require("./middleware/logger");
 const { registerErrorHandlers } = require("./config/registerErrorHandlers");
 const cors = require('cors');
 const express = require('express');
@@ -24,7 +24,7 @@ async function startServer() {
     registerErrorHandlers();
 
     // Initialize Express application
-    const app =  initializeExpress();
+    const app = initializeExpress();
 
     // Connect to database
     await connectDatabase();
@@ -33,6 +33,11 @@ async function startServer() {
     if (!isDatabaseConnected()) {
       throw new Error("Database connection verification failed");
     }
+
+    // Add health check endpoint
+    app.get('/health', (req, res) => {
+      res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+    });
 
     // Register routes
     initializeRoutes(app, BASE_PATH);
