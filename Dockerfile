@@ -13,26 +13,28 @@ FROM node:${NODE_VERSION}-alpine
 # Use production node environment by default.
 ENV NODE_ENV production
 
-
 WORKDIR /usr/src/app
 
-# Download dependencies as a separate step to take advantage of Docker's caching.
-# Leverage a cache mount to /root/.npm to speed up subsequent builds.
-# Leverage a bind mounts to package.json and package-lock.json to avoid having to copy them into
-# into this layer.
-RUN --mount=type=bind,source=package.json,target=package.json \
-    --mount=type=bind,source=package-lock.json,target=package-lock.json \
-    --mount=type=cache,target=/root/.npm \
-    npm ci --omit=dev
+# Copy package files first
+COPY package*.json ./
 
-# Run the application as a non-root user.
-USER node
+# Install dependencies including production ones
+RUN npm ci
 
 # Copy the rest of the source files into the image.
 COPY . .
 
+# Create and use non-root user
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+RUN chown -R appuser:appgroup /usr/src/app
+USER appuser
+
 # Expose the port that the application listens on.
 EXPOSE 3001
 
-# Run the application.
-CMD npm run dev
+# Health check
+HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
+    CMD wget --quiet --tries=1 --spider http://localhost:3001/health || exit 1
+
+# Run the application in production mode
+CMD ["npm", "start"]

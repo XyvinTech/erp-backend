@@ -2,7 +2,7 @@
   "name": "xyvin-erp-backend",
   "version": "1.0.0",
   "description": "Backend for Xyvin ERP System",
-  "main": "src/app.js",
+  "main": "server.js",
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
@@ -25,8 +25,7 @@
     "swagger-ui-express": "^5.0.0",
     "winston": "^3.17.0",
     "xss": "^1.0.15",
-    "xss-clean": "^0.1.4",
-    "xyvin-erp-backend": "file:"
+    "xss-clean": "^0.1.4"
   },
   "devDependencies": {
     "jest": "^29.7.0",
@@ -34,6 +33,6 @@
     "supertest": "^6.3.3"
   },
   "engines": {
-    "node": ">=14.0.0"
+    "node": ">=20.17.0"
   }
 }
