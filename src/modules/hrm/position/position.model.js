@@ -127,4 +127,6 @@ positionSchema.pre('deleteOne', { document: true }, async function(next) {
     next();
 });
 
-module.exports = mongoose.model('Position', positionSchema); 
+const Position = mongoose.model('Position', positionSchema);
+
+module.exports = Position;

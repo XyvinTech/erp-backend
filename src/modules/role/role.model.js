@@ -4,7 +4,6 @@ const roleSchema = new mongoose.Schema({
     name: {
         type: String,
         required: true,
-        unique: true,
         enum: [
             'ERP System Administrator',
             'IT Manager',

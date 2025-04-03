@@ -73,7 +73,8 @@ const employeeSchema = new mongoose.Schema(
     role: {
       type: String,
       required: [true, "Role is required"],
-      default: "Employee"
+      default: "Employee",
+      unique: false,
     },
     bankDetails: {
       accountName: String,

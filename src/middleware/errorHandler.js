@@ -14,10 +14,10 @@ exports.handleError = (err, req, res, next) => {
   err.status = err.status || 'error';
 
   // Mongoose duplicate key error
-  if (err.code === 11000) {
-    err.statusCode = 400;
-    err.message = 'Duplicate field value entered';
-  }
+  // if (err.code === 11000) {
+  //   err.statusCode = 400;
+  //   err.message = 'Duplicate field value entered';
+  // }
 
   // Mongoose validation error
   if (err.name === 'ValidationError') {

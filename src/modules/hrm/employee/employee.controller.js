@@ -1,5 +1,4 @@
-const {  Position } = require('../position/position.model');
-const Department = require('../department/department.model');
+
 const Employee = require('./employee.model');
 const catchAsync = require('../../../utils/catchAsync');
 const { createError } = require('../../../utils/errors');
@@ -7,6 +6,9 @@ const mongoose = require('mongoose');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs').promises;
+const   Position  = require('../position/position.model');
+const Department = require('../department/department.model')
+
 
 // Configure multer for file upload
 const storage = multer.diskStorage({
@@ -248,7 +250,8 @@ const createEmployee = catchAsync(async (req, res) => {
     emergencyContact,
     createdBy: req.user.id
   });
-
+  console.log(Department);
+  console.log(Position);
   // Populate necessary fields before sending response
   await employee.populate('department', 'name');
   await employee.populate('position', 'title');

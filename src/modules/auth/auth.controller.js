@@ -1,7 +1,6 @@
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const Employee = require('../hrm/employee/employee.model');
-const Role = require('../role/role.model');
 const { JWT_SECRET, JWT_EXPIRES_IN } = require('../../config/env');
 const { logger } = require('../../middleware/logger');
 const crypto = require('crypto');

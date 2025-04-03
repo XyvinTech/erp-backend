@@ -36,11 +36,11 @@ const handleValidationError = (err) => {
 };
 
 // Handle Mongoose duplicate key errors
-const handleDuplicateKeyError = (err) => {
-  const field = Object.keys(err.keyValue)[0];
-  const message = `Duplicate field value: ${field}. Please use another value`;
-  return new AppError(message, 400);
-};
+// const handleDuplicateKeyError = (err) => {
+//   const field = Object.keys(err.keyValue)[0];
+//   const message = `Duplicate field value: ${field}. Please use another value`;
+//   return new AppError(message, 400);
+// };
 
 // Handle JWT errors
 const handleJWTError = () => 

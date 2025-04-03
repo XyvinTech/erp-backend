@@ -1,5 +1,5 @@
 const Employee = require('../modules/hrm/employee/employee.model');
-const Role = require('../modules/role/role.model');
+// const Role = require('../modules/role/role.model');
 const Department = require('../modules/hrm/department/department.model');
 const Position = require('../modules/hrm/position/position.model');
 const mongoose = require('mongoose');
@@ -22,12 +22,12 @@ const seedEmployees = async () => {
         }
 
         // Find roles
-        console.log('Fetching roles...');
-        const roles = await Role.find();
+        // console.log('Fetching roles...');
+        // const roles = await Role.find();
 
-        if (roles.length === 0) {
-            throw new Error('No roles found. Please run role seeds first.');
-        }
+        // if (roles.length === 0) {
+        //     throw new Error('No roles found. Please run role seeds first.');
+        // }
 
         // Find departments and positions
         const departments = await Department.find();
@@ -38,10 +38,10 @@ const seedEmployees = async () => {
         }
 
         // Create a mapping of role names to role IDs for easier access
-        const roleMap = {};
-        roles.forEach(role => {
-            roleMap[role.name] = role._id;
-        });
+        // const roleMap = {};
+        // roles.forEach(role => {
+        //     roleMap[role.name] = role._id;
+        // });
 
         // Sample employee data with different roles
         const employeesData = [
