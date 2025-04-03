@@ -43,10 +43,6 @@ const seedEmployees = async () => {
             roleMap[role.name] = role._id;
         });
 
-        // Hash the password for all seed employees
-        const hashedPassword = '123456'
-        console.log('Password hashed successfully');
-
         // Sample employee data with different roles
         const employeesData = [
             {
@@ -58,13 +54,8 @@ const seedEmployees = async () => {
                 salary: 120000,
                 employeeId: 'EMP001',
                 email: 'admin@xyvin-erp.com',
-                password: hashedPassword,
-                role: [
-                    {
-                        type: 'Admin',
-                        role_type: roleMap['ERP System Administrator']
-                    }
-                ],
+                password: await bcrypt.hash('123456', 10),
+                role: 'ERP System Administrator',
                 phone: '1234567890',
                 status: 'active',
                 personalInfo: {
@@ -90,13 +81,8 @@ const seedEmployees = async () => {
                 salary: 95000,
                 employeeId: 'EMP002',
                 email: 'hr@xyvin-erp.com',
-                password: hashedPassword,
-                role: [
-                    {
-                        type: 'Manager',
-                        role_type: roleMap['HR Manager']
-                    }
-                ],
+                password: await bcrypt.hash('123456', 10),
+                role: 'HR Manager',
                 phone: '2345678901',
                 status: 'active',
                 personalInfo: {
@@ -122,13 +108,8 @@ const seedEmployees = async () => {
                 salary: 85000,
                 employeeId: 'EMP003',
                 email: 'dev@xyvin-erp.com',
-                password: hashedPassword,
-                role: [
-                    {
-                        type: 'Developer',
-                        role_type: roleMap['Developer']
-                    }
-                ],
+                password: await bcrypt.hash('123456', 10),
+                role: 'Developer',
                 phone: '3456789012',
                 status: 'active',
                 personalInfo: {
@@ -155,13 +136,8 @@ const seedEmployees = async () => {
                 salary: 110000,
                 employeeId: 'EMP004',
                 email: 'finance@xyvin-erp.com',
-                password: hashedPassword,
-                role: [
-                    {
-                        type: 'Finance',
-                        role_type: roleMap['Finance Manager']
-                    }
-                ],
+                password: await bcrypt.hash('123456', 10),
+                role: 'Finance Manager',
                 phone: '4567890123',
                 status: 'active',
                 personalInfo: {
@@ -187,13 +163,8 @@ const seedEmployees = async () => {
                 salary: 100000,
                 employeeId: 'EMP005',
                 email: 'project@xyvin-erp.com',
-                password: hashedPassword,
-                role: [
-                    {
-                        type: 'Project',
-                        role_type: roleMap['Project Manager']
-                    }
-                ],
+                password: await bcrypt.hash('123456', 10),
+                role: 'Project Manager',
                 phone: '5678901234',
                 status: 'active',
                 personalInfo: {
@@ -218,9 +189,9 @@ const seedEmployees = async () => {
         const createdEmployees = [];
         for (const employeeData of employeesData) {
             try {
-                // Skip the pre-save hook for password hashing since we've already hashed the passwords
+                // Create employee with pre-hashed password and skip the pre-save hashing
                 const employee = new Employee(employeeData);
-                employee.$__skipPasswordHashing = true; // Custom flag to skip password hashing
+                employee.$__skipPasswordHashing = true; // Skip hashing since we already hashed the password
                 await employee.save();
                 createdEmployees.push(employee);
                 console.log(`Created employee: ${employee.firstName} ${employee.lastName}`);

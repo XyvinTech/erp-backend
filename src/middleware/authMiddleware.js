@@ -1,91 +1,110 @@
 const jwt = require('jsonwebtoken');
 const Employee = require('../modules/hrm/employee/employee.model');
-const Role = require('../modules/role/role.model');
 const { JWT_SECRET } = require('../config/env');
 
 exports.protect = async (req, res, next) => {
   try {
-    console.log(req.headers.authorization, "header")
+    console.log('Headers received:', req.headers);
+    console.log('Authorization header:', req.headers.authorization);
     let token;
 
     // Check if token exists in headers
     if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
       token = req.headers.authorization.split(' ')[1];
+      console.log('Token extracted:', token);
+    } else {
+      console.log('No Bearer token found in Authorization header');
     }
 
     if (!token) {
-      res.status(401).send('Not authorized to access this route')
+      console.log('No token provided');
+      return res.status(401).json({
+        success: false,
+        message: 'Not authorized to access this route'
+      });
     }
 
     try {
       // Verify token
+      console.log('Attempting to verify token with secret');
       const decoded = jwt.verify(token, JWT_SECRET);
-      console.log('Decoded token:', decoded);
+      console.log('Token successfully decoded:', decoded);
 
-      // Get user from token with role information
-      req.user = await Employee.findById(decoded.id)
-        .select('-password')
-        .populate({
-          path: 'role.role_type',
-          model: 'Role',
-          select: 'name description'
-        });
+      // Get user from token
+      console.log('Finding user with ID:', decoded.id);
+      req.user = await Employee.findById(decoded.id).select('-password');
+      console.log('User found:', req.user ? 'Yes' : 'No');
 
       if (!req.user) {
-        res.status(401).send('User not found')
+        console.log('No user found with token ID');
+        return res.status(401).json({
+          success: false,
+          message: 'User not found'
+        });
       }
 
-      // Add roles from token to user object
-      req.user.tokenRoles = decoded.roles;
-      console.log('User roles from token:', req.user.tokenRoles);
+      // Add role from token to user object
+      req.user.role = decoded.role;
+      console.log('User role from token:', req.user.role);
+      console.log('Authorization successful');
+      
       next();
     } catch (error) {
       console.error('Token verification error:', error);
-      res.status(401).send('Not authorized to access this route')
+      console.error('Error details:', {
+        name: error.name,
+        message: error.message,
+        expiredAt: error.expiredAt
+      });
+      return res.status(401).json({
+        success: false,
+        message: 'Not authorized to access this route',
+        error: error.message
+      });
     }
   } catch (error) {
     console.error('Protect middleware error:', error);
-    res.status(500).send('Server Error')
+    return res.status(500).json({
+      success: false,
+      message: 'Server Error',
+      error: error.message
+    });
   }
 };
 
-exports.authorize = (...roleNames) => {
+exports.authorize = (...roles) => {
   return async (req, res, next) => {
     try {
-      if (!req.user || !req.user.role || req.user.role.length === 0) {
-        console.log('No roles found for user');
-        res.status(403).send("User has no roles assigned")
+      if (!req.user || !req.user.role) {
+        console.log('No role found for user');
+        return res.status(403).json({
+          success: false,
+          message: 'User has no role assigned'
+        });
       }
 
-      console.log('User roles:', req.user.role);
-      console.log('Required roles:', roleNames);
+      console.log('User role:', req.user.role);
+      console.log('Required roles:', roles);
 
-      // Extract role names from the populated role objects
-      const userRoleNames = req.user.role.map(roleObj => {
-        // Handle both populated and non-populated role objects
-        if (roleObj.role_type && typeof roleObj.role_type === 'object') {
-          return roleObj.role_type.name;
-        } else {
-          // If role_type is not populated, we need to get the role name
-          return roleObj.type;
-        }
-      });
-
-      console.log('User role names:', userRoleNames);
-
-      // Check if the user has any of the required roles
-      const hasRequiredRole = userRoleNames.some(roleName => roleNames.includes(roleName));
+      // Check if the user's role is included in the required roles
+      const hasRequiredRole = roles.includes(req.user.role);
 
       if (!hasRequiredRole) {
-        console.log('User does not have required roles');
-        res.status(403).send('User does not have required roles')
+        console.log('User does not have required role');
+        return res.status(403).json({
+          success: false,
+          message: 'User does not have required role'
+        });
       }
 
       console.log('Authorization successful');
       next();
     } catch (error) {
       console.error('Authorize middleware error:', error);
-      res.status(500).send('Error checking permissions')
+      return res.status(500).json({
+        success: false,
+        message: 'Error checking permissions'
+      });
     }
   };
 };

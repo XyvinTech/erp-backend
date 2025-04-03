@@ -70,6 +70,11 @@ const employeeSchema = new mongoose.Schema(
       required: [true, "Salary is required"],
       min: [0, "Salary cannot be negative"],
     },
+    role: {
+      type: String,
+      required: [true, "Role is required"],
+      default: "Employee"
+    },
     bankDetails: {
       accountName: String,
       accountNumber: String,
@@ -149,19 +154,6 @@ const employeeSchema = new mongoose.Schema(
       // required: true,
       default: null,
     },
-    role: [
-      {
-        type: {
-          type: String,
-          required: true
-        },
-        role_type: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: "Role",
-          required: true,
-        },
-      },
-    ],
     isActive: {
       type: Boolean,
       default: true,
@@ -193,22 +185,50 @@ employeeSchema.virtual("leaves", {
   foreignField: "employee",
 });
 
-// Encrypt password using bcrypt
-employeeSchema.pre("save", async function (next) {
-  // Skip hashing if password hasn't changed or if we have a custom flag to skip
-  if (!this.isModified("password") || this.$__skipPasswordHashing) {
-    return next();
-  }
-
-  const salt = await bcrypt.genSalt(10);
-  this.password = await bcrypt.hash(this.password, salt);
-  next();
-});
-
 // Match password
 employeeSchema.methods.matchPassword = async function (enteredPassword) {
-  return await bcrypt.compare(enteredPassword, this.password);
+  try {
+    console.log('Matching password...');
+    console.log('Entered password:', enteredPassword);
+    console.log('Stored hashed password:', this.password);
+    
+    if (!this.password) {
+      console.log('No password stored for user');
+      return false;
+    }
+
+    // Use bcrypt.compare to safely compare the passwords
+    const isMatch = await bcrypt.compare(enteredPassword, this.password);
+    console.log('Password match result:', isMatch);
+    return isMatch;
+  } catch (error) {
+    console.error('Error matching password:', error);
+    return false;
+  }
 };
+
+// Encrypt password using bcrypt
+employeeSchema.pre("save", async function (next) {
+  try {
+    console.log('Pre-save middleware running...');
+    console.log('Password modified:', this.isModified("password"));
+    
+    // Skip hashing if password hasn't changed or if we have a custom flag to skip
+    if (!this.isModified("password") || this.$__skipPasswordHashing) {
+      console.log('Skipping password hash');
+      return next();
+    }
+
+    console.log('Hashing password...');
+    const salt = await bcrypt.genSalt(10);
+    this.password = await bcrypt.hash(this.password, salt);
+    console.log('Password hashed successfully');
+    next();
+  } catch (error) {
+    console.error('Error in password hashing:', error);
+    next(error);
+  }
+});
 
 // Pre-save middleware to update department and position employee counts
 employeeSchema.pre("save", async function (next) {

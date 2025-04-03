@@ -14,7 +14,8 @@ const crypto = require('crypto');
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
-    console.log('Login attempt for:', email); // Debug log
+    console.log('Login attempt for:', email);
+    console.log('Password received:', password);
 
     // Validate email and password
     if (!email || !password) {
@@ -24,9 +25,16 @@ exports.login = async (req, res) => {
       });
     }
 
-    // Check for user
+    // Check for user and explicitly select the password field
     const employee = await Employee.findOne({ email }).select('+password');
-    console.log('Employee found:', employee ? 'Yes' : 'No'); // Debug log
+    console.log('Employee found:', employee ? 'Yes' : 'No');
+    
+    // Log full employee object for debugging
+    if (employee) {
+      console.log('Full employee details:', JSON.stringify(employee.toObject(), null, 2));
+    } else {
+      console.log('No employee found with email:', email);
+    }
 
     if (!employee) {
       logger.warn(`Login attempt with invalid email: ${email}`);
@@ -46,8 +54,17 @@ exports.login = async (req, res) => {
     }
 
     // Check if password matches
+    console.log('Attempting to match password...');
+    if (!employee.password) {
+      console.error('No password found for employee');
+      return res.status(500).json({
+        success: false,
+        message: 'Account configuration error'
+      });
+    }
+
     const isMatch = await employee.matchPassword(password);
-    console.log('Password match:', isMatch ? 'Yes' : 'No'); // Debug log
+    console.log('Password match result:', isMatch);
 
     if (!isMatch) {
       logger.warn(`Login attempt with invalid password for: ${email}`);
@@ -57,20 +74,30 @@ exports.login = async (req, res) => {
       });
     }
 
-    // Create token
-    const token = await generateToken(employee._id);
+    // Create token payload
+    const tokenPayload = {
+      id: employee._id,
+      role: employee.role
+    };
+    console.log('Creating token with payload:', tokenPayload);
 
-    // Get role details
-    let roleDetails = [];
-    if (employee.role && employee.role.length > 0) {
-      const roleIds = employee.role.map(r => r.role_type);
-      const roles = await Role.find({ _id: { $in: roleIds } });
-      roleDetails = roles.map(role => ({
-        id: role._id,
-        name: role.name
-      }));
+    // Create token
+    const token = jwt.sign(tokenPayload, JWT_SECRET, {
+      expiresIn: JWT_EXPIRES_IN
+    });
+
+    // Verify the token immediately to ensure it's valid
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET);
+      console.log('Token verified successfully:', decoded);
+    } catch (error) {
+      console.error('Token verification failed:', error);
+      throw new Error('Failed to generate valid token');
     }
 
+    console.log('Generated token:', token);
+
+    // Send response
     res.status(200).json({
       success: true,
       message: 'Login successful',
@@ -82,7 +109,7 @@ exports.login = async (req, res) => {
         lastName: employee.lastName,
         email: employee.email,
         profilePicture: employee.profilePicture,
-        roles: roleDetails,
+        role: employee.role,
         department: employee.department,
         position: employee.position
       }
@@ -116,7 +143,7 @@ exports.register = async (req, res) => {
       phone,
       joiningDate,
       salary,
-      roles
+      role
     } = req.body;
 
     // Check if employee already exists
@@ -131,37 +158,7 @@ exports.register = async (req, res) => {
       });
     }
 
-    // Validate roles if provided
-    let roleObjects = [];
-    if (roles && roles.length > 0) {
-      const validRoles = await Role.find({ _id: { $in: roles } });
-
-      if (validRoles.length !== roles.length) {
-        return res.status(400).json({
-          success: false,
-          message: 'One or more role IDs are invalid'
-        });
-      }
-
-      roleObjects = roles.map(roleId => {
-        const role = validRoles.find(r => r._id.toString() === roleId.toString());
-        return {
-          type: role.name,
-          role_type: roleId
-        };
-      });
-    } else {
-      // Default to basic employee role if none provided
-      const defaultRole = await Role.findOne({ name: 'Employee' });
-      if (defaultRole) {
-        roleObjects = [{
-          type: 'Employee',
-          role_type: defaultRole._id
-        }];
-      }
-    }
-
-    // Create employee
+    // Create employee with default role if not provided
     const employee = await Employee.create({
       firstName,
       lastName,
@@ -173,17 +170,9 @@ exports.register = async (req, res) => {
       phone,
       joiningDate: joiningDate || new Date(),
       salary,
-      role: roleObjects,
+      role: role || 'Employee',
       status: 'active'
     });
-
-    // Get role details for response
-    const roleIds = employee.role.map(r => r.role_type);
-    const roleDetails = await Role.find({ _id: { $in: roleIds } });
-    const rolesForResponse = roleDetails.map(role => ({
-      id: role._id,
-      name: role.name
-    }));
 
     res.status(201).json({
       success: true,
@@ -194,7 +183,7 @@ exports.register = async (req, res) => {
         firstName: employee.firstName,
         lastName: employee.lastName,
         email: employee.email,
-        roles: rolesForResponse
+        role: employee.role
       }
     });
   } catch (error) {
@@ -225,17 +214,6 @@ exports.getMe = async (req, res) => {
       });
     }
 
-    // Get role details
-    let roleDetails = [];
-    if (employee.role && employee.role.length > 0) {
-      const roleIds = employee.role.map(r => r.role_type);
-      const roles = await Role.find({ _id: { $in: roleIds } });
-      roleDetails = roles.map(role => ({
-        id: role._id,
-        name: role.name
-      }));
-    }
-
     res.status(200).json({
       success: true,
       data: {
@@ -251,7 +229,7 @@ exports.getMe = async (req, res) => {
         position: employee.position,
         joiningDate: employee.joiningDate,
         status: employee.status,
-        roles: roleDetails
+        role: employee.role
       }
     });
   } catch (error) {
@@ -388,29 +366,17 @@ exports.logout = (req, res) => {
 const generateToken = async (id) => {
   try {
     // Get employee with role information
-    const employee = await Employee.findById(id)
-      .populate({
-        path: 'role.role_type',
-        model: 'Role',
-        select: 'name description'
-      });
+    const employee = await Employee.findById(id);
 
     if (!employee) {
       throw new Error('Employee not found');
     }
 
-    // Extract role information
-    const roles = employee.role.map(roleObj => ({
-      type: roleObj.type,
-      role_type: roleObj.role_type._id,
-      name: roleObj.role_type.name
-    }));
- console.log(roles, "role")
-    // Create token with role information
+    // Create token with simple role string
     return jwt.sign(
       { 
         id,
-        roles 
+        role: employee.role // Using the simple role string
       }, 
       JWT_SECRET, 
       {
