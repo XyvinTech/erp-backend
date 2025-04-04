@@ -24,11 +24,15 @@ COPY . .
 FROM node:20.17.0-alpine
 
 ENV NODE_ENV=production
+ENV PORT=8080
 
 WORKDIR /usr/src/app
 
-# Copy everything from the project
-COPY . .
+# Copy only necessary files from build stage
+COPY --from=build /usr/src/app/node_modules ./node_modules
+COPY --from=build /usr/src/app/package*.json ./
+COPY --from=build /usr/src/app/src ./src
+COPY --from=build /usr/src/app/server.js ./
 
 # Create and use a non-root user
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
@@ -40,7 +44,7 @@ EXPOSE 8080
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
-    CMD wget --quiet --tries=1 --spider http://localhost:3001/health || exit 1
+    CMD wget --quiet --tries=1 --spider http://localhost:8080/health || exit 1
 
 # Start the app
 CMD ["npm", "start"]
