@@ -1,7 +1,7 @@
 require('dotenv').config();
 
 module.exports = {
-    PORT: process.env.PORT || 3001,
+    PORT: process.env.PORT || 8080,
     BASE_PATH: process.env.BASE_PATH || '/api/v1',
     NODE_ENV: process.env.NODE_ENV || 'development',
     MONGO_URL: process.env.MONGO_URL || 'mongodb+srv://admin:QOUTdL5uXqbE67rv@xyvin.6p93v.mongodb.net/xyvin-erp',
