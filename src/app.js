@@ -43,10 +43,7 @@ async function startServer() {
     initializeRoutes(app, BASE_PATH);
 
     // Add CORS middleware
-    app.use(cors({
-      origin: ['http://localhost:3000', 'http://localhost:3001', 'https://erp-xyvin-859e2.web.app'],
-      credentials: true
-    }));
+    app.use(cors('*'));
 
     // Also ensure you have body-parser or express.json() middleware
     app.use(express.json());
