@@ -17,10 +17,10 @@ docker build -t myapp:v1 -f Dockerfile .
 
 ## Running the Container
 
-To run the container in detached mode, exposing port 3001:
+To run the container in detached mode, exposing port 8080:
 
 ```bash
-docker run -d --name erp-backend -p 3001:3001 myapp:v1
+docker run -d --name erp-backend -p 8080:8080 myapp:v1
 ```
 
 ## Health Check
@@ -28,7 +28,7 @@ docker run -d --name erp-backend -p 3001:3001 myapp:v1
 The container includes a health check that pings the `/health` endpoint. You can test it with:
 
 ```bash
-curl http://localhost:3001/health
+curl http://localhost:8080/health
 ```
 
 ## Environment Variables
@@ -36,7 +36,7 @@ curl http://localhost:3001/health
 The container uses the following environment variables:
 
 - `NODE_ENV`: Set to `production` by default
-- `PORT`: Default is 3001
+- `PORT`: Default is 8080
 - `MONGO_URL`: MongoDB connection string
 - `JWT_SECRET`: Secret for JWT token generation
 
@@ -71,7 +71,7 @@ If you encounter issues when building the Docker image:
 When you're ready, start your application by running:
 `docker compose up --build`.
 
-Your application will be available at http://localhost:3001.
+Your application will be available at http://localhost:8080.
 
 ### Deploying your application to the cloud
 

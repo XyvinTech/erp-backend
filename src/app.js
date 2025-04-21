@@ -39,14 +39,16 @@ async function startServer() {
       res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
     });
 
-    // Register routes
-    initializeRoutes(app, BASE_PATH);
-
-    // Add CORS middleware
+    // Add CORS middleware with proper configuration
     app.use(cors({
-      origin: ['http://localhost:3000', 'http://localhost:3001','https://erp-xyvin-859e2.web.app'],
+      origin: ['http://localhost:3000', 'http://localhost:8080', 'https://erp-xyvin-859e2.web.app'],
+      methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization'],
       credentials: true
     }));
+
+    // Register routes
+    initializeRoutes(app, BASE_PATH);
 
     // Also ensure you have body-parser or express.json() middleware
     app.use(express.json());
