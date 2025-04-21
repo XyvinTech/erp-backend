@@ -5,6 +5,7 @@ const { protect } = require('../../../middleware/authMiddleware');
 
 router.use(protect)
 
+
 // Employee routes (must come before other routes)
 router.get('/my-payroll',  payrollController.getMyPayroll);
 

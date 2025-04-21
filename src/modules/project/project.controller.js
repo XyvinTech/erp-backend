@@ -70,15 +70,16 @@ exports.getProjects = async (req, res) => {
     const userId = req.user._id;
 
     // Check if user has Admin role
-    const isAdmin = req.user.role.some(role =>
-      (role.type === 'Admin' || (role.role_type && role.role_type.name === 'ERP System Administrator'))
-    );
+    // const isAdmin = req.user.role.some(role =>
+    //   (role.type === 'Admin' || (role.role_type && role.role_type.name === 'ERP System Administrator'))
+    // );
 
+    const isAdmin = req.user.role === 'ERP System Administrator';
     // Check if user has Project Manager role
-    const isProjectManager = req.user.role.some(role =>
-      (role.type === 'Project' || (role.role_type && role.role_type.name === 'Project Manager'))
-    );
-
+    // const isProjectManager = req.user.role.some(role =>
+    //   (role.type === 'Project' || (role.role_type && role.role_type.name === 'Project Manager'))
+    // );
+    const isProjectManager = req.user.role === 'Project Manager';
     let query = {};
 
     // If not admin, filter projects based on user's role
@@ -489,10 +490,11 @@ exports.testProjectAccess = async (req, res) => {
         id: req.user._id,
         name: `${req.user.firstName} ${req.user.lastName}`,
         email: req.user.email,
-        roles: req.user.role.map(r => ({
-          type: r.type,
-          role_type: r.role_type
-        }))
+        // roles: req.user.role.map(r => ({
+        //   type: r.type,
+        //   role_type: r.role_type
+        // }))
+        roles: req.user.role,
       },
       projectId
     });

@@ -15,21 +15,60 @@ const updateAttendanceIndexes = async () => {
         await collection.dropIndexes();
         console.log('All indexes dropped successfully');
 
-        // Create new non-unique compound index
-        console.log('Creating new index...');
+        // Create new compound indexes
+        console.log('Creating new indexes...');
+        
+        // Main compound index
         await collection.createIndex(
             { 
                 employee: 1, 
-                date: 1, 
-                createdAt: -1 
+                date: 1,
+                status: 1,
+                isDeleted: 1
             },
             { 
-                unique: false,
                 background: true,
                 name: 'attendance_query_index'
             }
         );
-        console.log('New index created successfully');
+
+        // Date range index
+        await collection.createIndex(
+            { 
+                date: 1,
+                isDeleted: 1
+            },
+            { 
+                background: true,
+                name: 'attendance_date_index'
+            }
+        );
+
+        // Employee index
+        await collection.createIndex(
+            { 
+                employee: 1,
+                isDeleted: 1
+            },
+            { 
+                background: true,
+                name: 'attendance_employee_index'
+            }
+        );
+
+        // Status index
+        await collection.createIndex(
+            { 
+                status: 1,
+                isDeleted: 1
+            },
+            { 
+                background: true,
+                name: 'attendance_status_index'
+            }
+        );
+
+        console.log('New indexes created successfully');
 
         // Verify indexes
         const indexes = await collection.indexes();

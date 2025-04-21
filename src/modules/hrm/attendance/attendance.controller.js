@@ -401,164 +401,274 @@ exports.deleteAttendance = catchAsync(async (req, res) => {
 exports.getAttendanceStats = catchAsync(async (req, res) => {
   const { startDate, endDate, departmentId } = req.query;
 
-  // Get total active employees count
-  let employeeQuery = { status: 'active' };
-  if (departmentId) {
-    employeeQuery.department = departmentId;
-  }
-  const totalEmployees = await Employee.countDocuments(employeeQuery);
+  try {
+    // Validate and set date range for current month
+    const validStartDate = startDate ? new Date(startDate) : new Date();
+    validStartDate.setHours(0, 0, 0, 0);
+    
+    const validEndDate = endDate ? new Date(endDate) : new Date();
+    validEndDate.setHours(23, 59, 59, 999);
 
-  // Get today's date range
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const tomorrow = new Date(today);
-  tomorrow.setDate(tomorrow.getDate() + 1);
-
-  // Get attendance stats for today
-  let todayMatchStage = { 
-    isDeleted: false,
-    date: {
-      $gte: today,
-      $lt: tomorrow
+    if (isNaN(validStartDate.getTime()) || isNaN(validEndDate.getTime())) {
+      throw createError(400, 'Invalid date format provided');
     }
-  };
 
-  if (departmentId) {
-    const employees = await Employee.find({ department: departmentId }).select('_id');
-    todayMatchStage.employee = { $in: employees.map(emp => emp._id) };
-  }
-
-  const todayStats = await Attendance.aggregate([
-    {
-      $match: todayMatchStage
-    },
-    {
-      $group: {
-        _id: '$status',
-        count: { $sum: 1 },
-        uniqueEmployees: { $addToSet: '$employee' }
-      }
-    },
-    {
-      $project: {
-        status: '$_id',
-        count: 1,
-        uniqueEmployeeCount: { $size: '$uniqueEmployees' }
-      }
+    // Get total active employees count
+    let employeeQuery = { status: 'active' };
+    if (departmentId) {
+      employeeQuery.department = departmentId;
     }
-  ]);
+    const totalEmployees = await Employee.countDocuments(employeeQuery);
+    const employees = await Employee.find(employeeQuery).select('_id');
+    const employeeIds = employees.map(emp => emp._id);
 
-  // Get attendance stats for the period (if date range provided)
-  let periodMatchStage = { isDeleted: false };
-  if (startDate && endDate) {
-    periodMatchStage.date = {
-      $gte: new Date(startDate),
-      $lte: new Date(endDate)
+    // Build base match stage for attendance queries
+    let baseMatchStage = { 
+      isDeleted: false,
+      employee: { $in: employeeIds }
     };
-  }
 
-  if (departmentId) {
-    const employees = await Employee.find({ department: departmentId }).select('_id');
-    periodMatchStage.employee = { $in: employees.map(emp => emp._id) };
-  }
-
-  const periodStats = await Attendance.aggregate([
-    {
-      $match: periodMatchStage
-    },
-    {
-      $group: {
-        _id: '$status',
-        count: { $sum: 1 },
-        uniqueEmployees: { $addToSet: '$employee' }
+    // Get current period stats with employee details
+    let currentPeriodMatch = { 
+      ...baseMatchStage,
+      date: {
+        $gte: validStartDate,
+        $lte: validEndDate
       }
-    },
-    {
-      $project: {
-        status: '$_id',
-        count: 1,
-        uniqueEmployeeCount: { $size: '$uniqueEmployees' }
-      }
-    }
-  ]);
-
-  // Get previous month's stats for comparison
-  const prevMonthStart = new Date(startDate);
-  prevMonthStart.setMonth(prevMonthStart.getMonth() - 1);
-  const prevMonthEnd = new Date(endDate);
-  prevMonthEnd.setMonth(prevMonthEnd.getMonth() - 1);
-
-  let prevMonthMatchStage = { ...periodMatchStage };
-  if (startDate && endDate) {
-    prevMonthMatchStage.date = {
-      $gte: prevMonthStart,
-      $lte: prevMonthEnd
     };
-  }
 
-  const prevMonthStats = await Attendance.aggregate([
-    {
-      $match: prevMonthMatchStage
-    },
-    {
-      $group: {
-        _id: '$status',
-        count: { $sum: 1 }
-      }
-    }
-  ]);
-
-  // Calculate percentage changes
-  const calculateChange = (currentCount, prevCount) => {
-    if (prevCount === 0) return currentCount > 0 ? '+100%' : '0%';
-    const change = ((currentCount - prevCount) / prevCount) * 100;
-    return `${change > 0 ? '+' : ''}${change.toFixed(1)}%`;
-  };
-
-  // Get previous month's employee count
-  const prevMonthEmployeeQuery = { ...employeeQuery, createdAt: { $lte: prevMonthEnd } };
-  const prevMonthTotalEmployees = await Employee.countDocuments(prevMonthEmployeeQuery);
-
-  // Calculate total present employees today (including Present, Late, and Early-Leave)
-  const presentStatuses = ['Present', 'Late', 'Early-Leave'];
-  const todayPresentCount = todayStats
-    .filter(stat => presentStatuses.includes(stat._id))
-    .reduce((sum, stat) => sum + stat.uniqueEmployeeCount, 0);
-
-  const todayHalfDayCount = todayStats
-    .find(stat => stat._id === 'Half-Day')?.uniqueEmployeeCount || 0;
-
-  const todayLeaveCount = todayStats
-    .find(stat => stat._id === 'On-Leave')?.uniqueEmployeeCount || 0;
-
-  res.status(200).json({
-    status: 'success',
-    data: { 
-      stats: periodStats,
-      totalEmployees,
-      todayStats: {
-        presentToday: presentStatuses,
-        halfDay: todayHalfDayCount,
-        onLeave: todayLeaveCount
+    const currentPeriodStats = await Attendance.aggregate([
+      {
+        $match: currentPeriodMatch
       },
-      changes: {
-        employees: calculateChange(totalEmployees, prevMonthTotalEmployees),
-        present: calculateChange(
-          presentStatuses,
-          prevMonthStats.filter(s => presentStatuses.includes(s._id))
-            .reduce((sum, stat) => sum + stat.count, 0)
-        ),
-        halfDay: calculateChange(
-          todayHalfDayCount,
-          prevMonthStats.find(s => s._id === 'Half-Day')?.count || 0
-        ),
-        leave: calculateChange(
-          todayLeaveCount,
-          prevMonthStats.find(s => s._id === 'On-Leave')?.count || 0
-        )
+      {
+        $lookup: {
+          from: 'employees',
+          localField: 'employee',
+          foreignField: '_id',
+          as: 'employeeDetails'
+        }
+      },
+      {
+        $unwind: '$employeeDetails'
+      },
+      {
+        $group: {
+          _id: '$status',
+          count: { $sum: 1 },
+          uniqueEmployees: { $addToSet: '$employee' },
+          totalWorkHours: { $sum: '$workHours' },
+          records: {
+            $push: {
+              _id: '$_id',
+              date: '$date',
+              employee: '$employeeDetails',
+              checkIn: '$checkIn',
+              checkOut: '$checkOut',
+              status: '$status',
+              workHours: '$workHours'
+            }
+          }
+        }
       }
-    }
-  });
+    ]);
+
+    // Calculate previous period dates
+    const prevPeriodStart = new Date(validStartDate);
+    prevPeriodStart.setMonth(prevPeriodStart.getMonth() - 1);
+    prevPeriodStart.setHours(0, 0, 0, 0);
+
+    const prevPeriodEnd = new Date(validEndDate);
+    prevPeriodEnd.setMonth(prevPeriodEnd.getMonth() - 1);
+    prevPeriodEnd.setHours(23, 59, 59, 999);
+
+    // Get previous period stats
+    let prevPeriodMatch = { 
+      ...baseMatchStage,
+      date: {
+        $gte: prevPeriodStart,
+        $lte: prevPeriodEnd
+      }
+    };
+
+    const prevPeriodStats = await Attendance.aggregate([
+      {
+        $match: prevPeriodMatch
+      },
+      {
+        $lookup: {
+          from: 'employees',
+          localField: 'employee',
+          foreignField: '_id',
+          as: 'employeeDetails'
+        }
+      },
+      {
+        $unwind: '$employeeDetails'
+      },
+      {
+        $group: {
+          _id: '$status',
+          count: { $sum: 1 },
+          uniqueEmployees: { $addToSet: '$employee' },
+          totalWorkHours: { $sum: '$workHours' }
+        }
+      }
+    ]);
+
+    // Process current period stats
+    const processedStats = {
+      present: 0,
+      absent: 0,
+      late: 0,
+      halfDay: 0,
+      earlyLeave: 0,
+      onLeave: 0,
+      holiday: 0,
+      dayOff: 0,
+      totalWorkHours: 0,
+      records: [] // Store all attendance records
+    };
+
+    // Process stats and collect records
+    currentPeriodStats.forEach(stat => {
+      if (!stat._id) return;
+      
+      switch(stat._id) {
+        case 'Present':
+          processedStats.present = stat.count;
+          processedStats.records.push(...stat.records);
+          break;
+        case 'Absent':
+          processedStats.absent = stat.count;
+          processedStats.records.push(...stat.records);
+          break;
+        case 'Late':
+          processedStats.late = stat.count;
+          processedStats.records.push(...stat.records);
+          break;
+        case 'Half-Day':
+          processedStats.halfDay = stat.count;
+          processedStats.records.push(...stat.records);
+          break;
+        case 'Early-Leave':
+          processedStats.earlyLeave = stat.count;
+          processedStats.records.push(...stat.records);
+          break;
+        case 'On-Leave':
+          processedStats.onLeave = stat.count;
+          processedStats.records.push(...stat.records);
+          break;
+        case 'Holiday':
+          processedStats.holiday = stat.count;
+          processedStats.records.push(...stat.records);
+          break;
+        case 'Day-Off':
+          processedStats.dayOff = stat.count;
+          processedStats.records.push(...stat.records);
+          break;
+      }
+      processedStats.totalWorkHours += stat.totalWorkHours || 0;
+    });
+
+    // Process previous period stats
+    const prevStats = {
+      present: 0,
+      absent: 0,
+      late: 0,
+      halfDay: 0,
+      earlyLeave: 0,
+      onLeave: 0,
+      holiday: 0,
+      dayOff: 0,
+      totalWorkHours: 0
+    };
+
+    prevPeriodStats.forEach(stat => {
+      if (!stat._id) return;
+      switch(stat._id) {
+        case 'Present':
+          prevStats.present = stat.count;
+          break;
+        case 'Absent':
+          prevStats.absent = stat.count;
+          break;
+        case 'Late':
+          prevStats.late = stat.count;
+          break;
+        case 'Half-Day':
+          prevStats.halfDay = stat.count;
+          break;
+        case 'Early-Leave':
+          prevStats.earlyLeave = stat.count;
+          break;
+        case 'On-Leave':
+          prevStats.onLeave = stat.count;
+          break;
+        case 'Holiday':
+          prevStats.holiday = stat.count;
+          break;
+        case 'Day-Off':
+          prevStats.dayOff = stat.count;
+          break;
+      }
+      prevStats.totalWorkHours += stat.totalWorkHours || 0;
+    });
+
+    // Calculate percentage changes
+    const calculateChange = (currentValue, prevValue) => {
+      if (prevValue === 0) return currentValue > 0 ? '+100%' : '0%';
+      const change = ((currentValue - prevValue) / prevValue) * 100;
+      return `${change > 0 ? '+' : ''}${change.toFixed(1)}%`;
+    };
+
+    // Calculate changes
+    const changes = {
+      present: calculateChange(processedStats.present, prevStats.present),
+      absent: calculateChange(processedStats.absent, prevStats.absent),
+      late: calculateChange(processedStats.late, prevStats.late),
+      halfDay: calculateChange(processedStats.halfDay, prevStats.halfDay),
+      earlyLeave: calculateChange(processedStats.earlyLeave, prevStats.earlyLeave),
+      onLeave: calculateChange(processedStats.onLeave, prevStats.onLeave),
+      holiday: calculateChange(processedStats.holiday, prevStats.holiday),
+      dayOff: calculateChange(processedStats.dayOff, prevStats.dayOff),
+      totalWorkHours: calculateChange(processedStats.totalWorkHours, prevStats.totalWorkHours)
+    };
+
+    // Get previous month's employee count
+    const prevMonthTotalEmployees = await Employee.countDocuments({
+      ...employeeQuery,
+      updatedAt: { $lte: prevPeriodEnd }
+    });
+
+    // Sort records by date
+    processedStats.records.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    res.status(200).json({
+      status: 'success',
+      data: {
+        stats: processedStats,
+        totalEmployees,
+        changes: {
+          ...changes,
+          employees: calculateChange(totalEmployees, prevMonthTotalEmployees)
+        },
+        dateRange: {
+          current: { 
+            startDate: validStartDate.toISOString(), 
+            endDate: validEndDate.toISOString() 
+          },
+          previous: { 
+            startDate: prevPeriodStart.toISOString(), 
+            endDate: prevPeriodEnd.toISOString() 
+          }
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Stats calculation error:', error);
+    throw error;
+  }
 });
 
 // Update attendance record

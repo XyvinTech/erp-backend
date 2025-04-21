@@ -155,15 +155,42 @@ attendanceSchema.pre('save', async function(next) {
     next();
 });
 
-// Create a non-unique compound index for efficient querying
+// Create compound indexes for efficient querying
 attendanceSchema.index({ 
     employee: 1, 
     date: 1, 
-    createdAt: -1 
+    status: 1,
+    isDeleted: 1
 }, { 
-    unique: false,
     background: true,
     name: 'attendance_query_index'
+});
+
+// Index for date range queries
+attendanceSchema.index({ 
+    date: 1,
+    isDeleted: 1
+}, { 
+    background: true,
+    name: 'attendance_date_index'
+});
+
+// Index for employee queries
+attendanceSchema.index({ 
+    employee: 1,
+    isDeleted: 1
+}, { 
+    background: true,
+    name: 'attendance_employee_index'
+});
+
+// Index for status queries
+attendanceSchema.index({ 
+    status: 1,
+    isDeleted: 1
+}, { 
+    background: true,
+    name: 'attendance_status_index'
 });
 
 // Calculate work hours before saving

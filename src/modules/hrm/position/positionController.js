@@ -55,43 +55,23 @@ const getPosition = catchAsync(async (req, res) => {
  */
 const generatePositionCode = async () => {
   try {
-    // Get all positions and sort by code in descending order
-    const positions = await Position.find({})
-      .sort({ code: -1 })
-      .limit(1)
+    // Find the latest position by sorting in descending order by createdAt
+    const latestPosition = await Position.findOne()
+      .sort({ createdAt: -1, code: -1 })
+      .select('code')
       .lean();
 
-    console.log('Latest position:', positions[0]); // Debug log
-
-    if (!positions || positions.length === 0) {
-      console.log('No positions found, starting with POS001');
+    if (!latestPosition) {
       return 'POS001';
     }
 
-    const latestPosition = positions[0];
-    console.log('Latest position code:', latestPosition.code); // Debug log
+    // Extract the numeric part and increment
+    const currentCode = latestPosition.code;
+    const numericPart = parseInt(currentCode.replace('POS', ''));
+    const nextNumber = numericPart + 1;
+    const nextCode = `POS${String(nextNumber).padStart(3, '0')}`;
 
-    // Extract the numeric part
-    const matches = latestPosition.code.match(/POS(\d+)/);
-    
-    if (!matches || !matches[1]) {
-      console.log('Invalid code format, starting with POS001');
-      return 'POS001';
-    }
-
-    const currentNumber = parseInt(matches[1], 10);
-    if (isNaN(currentNumber)) {
-      console.log('Invalid number format, starting with POS001');
-      return 'POS001';
-    }
-
-    const nextNumber = currentNumber + 1;
-    const paddedNumber = nextNumber.toString().padStart(3, '0');
-    const nextCode = `POS${paddedNumber}`;
-    
-    console.log('Generated next code:', nextCode); // Debug log
     return nextCode;
-
   } catch (error) {
     console.error('Error generating position code:', error);
     throw new Error('Failed to generate position code');
