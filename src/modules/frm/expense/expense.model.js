@@ -41,12 +41,12 @@ const expenseSchema = new mongoose.Schema({
   },
   submittedBy: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
+    ref: 'Employee',
     required: true
   },
   approvedBy: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User'
+    ref: 'Employee'
   },
   approvalDate: {
     type: Date

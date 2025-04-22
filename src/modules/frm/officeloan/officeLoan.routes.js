@@ -8,7 +8,8 @@ const {
   updateOfficeLoan,
   processLoanRequest,
   recordPayment,
-  getLoanStats
+  getLoanStats,
+  deleteOfficeLoan
 } = require('../officeloan/officeLoan.controller');
 const { protect } = require('../../../middleware/authMiddleware');
 
@@ -49,6 +50,11 @@ router.post('/:id/process',
 // Record loan payment
 router.post('/:id/payment', 
   recordPayment
+);
+
+// Delete office loan
+router.delete('/:id',
+  deleteOfficeLoan
 );
 
 module.exports = router; 

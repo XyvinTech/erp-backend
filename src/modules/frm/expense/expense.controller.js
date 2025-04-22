@@ -2,6 +2,7 @@ const Expense = require('../expense/expense.model');
 const { validateExpense } = require('../validations/expenseValidation');
 const { uploadFile } = require('../../../utils/fileUpload');
 const Joi = require('joi');
+const createError = require('http-errors');
 
 /**
  * Generate expense number
@@ -161,19 +162,33 @@ const getExpenses = async (req, res, next) => {
   try {
     // Check if user is authenticated
     if (!req.user || !req.user._id) {
+      console.log('User authentication failed:', req.user);
       return next(createError(401, 'User not authenticated'));
     }
+
+    console.log('User requesting expenses:', {
+      userId: req.user._id,
+      role: req.user.role
+    });
 
     const { status, category, startDate, endDate } = req.query;
     const filter = {};
 
     // Add filters if provided
-    if (status) filter.status = status;
-    if (category) filter.category = category;
+    if (status && ['Pending', 'Approved', 'Rejected'].includes(status)) {
+      filter.status = status;
+    }
+    if (category && ['travel', 'office', 'meals', 'utilities', 'other'].includes(category)) {
+      filter.category = category;
+    }
     if (startDate || endDate) {
       filter.date = {};
-      if (startDate) filter.date.$gte = new Date(startDate);
-      if (endDate) filter.date.$lte = new Date(endDate);
+      if (startDate && !isNaN(new Date(startDate))) {
+        filter.date.$gte = new Date(startDate);
+      }
+      if (endDate && !isNaN(new Date(endDate))) {
+        filter.date.$lte = new Date(endDate);
+      }
     }
 
     // Add user role based filters
@@ -181,14 +196,39 @@ const getExpenses = async (req, res, next) => {
       filter.submittedBy = req.user._id;
     }
 
-    console.log('Expense filter:', filter); // Add logging for debugging
+    console.log('Final expense filter:', JSON.stringify(filter, null, 2));
 
     const expenses = await Expense.find(filter)
       .populate('submittedBy', 'name email')
       .populate('approvedBy', 'name email')
       .sort({ createdAt: -1 });
 
-    res.json(expenses);
+    console.log(`Found ${expenses.length} expenses`);
+
+    // Transform and validate expenses before sending
+    const transformedExpenses = expenses.map(expense => {
+      const expenseObj = expense.toObject();
+      return {
+        ...expenseObj,
+        amount: Number(expenseObj.amount) || 0,
+        date: expenseObj.date ? new Date(expenseObj.date).toISOString() : new Date().toISOString(),
+        status: expenseObj.status || 'Pending',
+        category: expenseObj.category || 'other',
+        submittedBy: expenseObj.submittedBy ? {
+          _id: expenseObj.submittedBy._id,
+          name: expenseObj.submittedBy.name,
+          email: expenseObj.submittedBy.email
+        } : null,
+        approvedBy: expenseObj.approvedBy ? {
+          _id: expenseObj.approvedBy._id,
+          name: expenseObj.approvedBy.name,
+          email: expenseObj.approvedBy.email
+        } : null
+      };
+    });
+
+    console.log('Sending expenses response');
+    res.json(transformedExpenses);
   } catch (error) {
     console.error('Error fetching expenses:', error);
     next(createError(error.statusCode || 500, error.message || 'Error fetching expenses'));
@@ -283,33 +323,68 @@ const deleteExpense = async (req, res, next) => {
   try {
     // Check if user is authenticated
     if (!req.user || !req.user._id) {
-      return next(createError(401, 'User not authenticated'));
+      console.log('Delete failed: User not authenticated');
+      return res.status(401).json({
+        success: false,
+        message: 'User not authenticated'
+      });
     }
 
     const expense = await Expense.findById(req.params.id);
+    console.log('Found expense for deletion:', {
+      id: req.params.id,
+      status: expense?.status,
+      submittedBy: expense?.submittedBy,
+      userId: req.user._id
+    });
+
     if (!expense) {
-      return next(createError(404, 'Expense not found'));
+      console.log('Delete failed: Expense not found');
+      return res.status(404).json({
+        success: false,
+        message: 'Expense not found'
+      });
     }
 
     // Check if user has permission to delete
     if (expense.submittedBy.toString() !== req.user._id.toString()) {
-      return next(createError(403, 'Not authorized to delete this expense'));
+      console.log('Delete failed: User not authorized', {
+        expenseUser: expense.submittedBy.toString(),
+        requestUser: req.user._id.toString()
+      });
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to delete this expense'
+      });
     }
 
     // Can only delete if status is Pending
     if (expense.status !== 'Pending') {
-      return next(createError(400, 'Cannot delete expense that is already processed'));
+      console.log('Delete failed: Expense status not Pending', {
+        status: expense.status
+      });
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot delete expense that is already processed'
+      });
     }
 
     await Expense.findByIdAndDelete(req.params.id);
-    res.status(200).json({ message: 'Expense deleted successfully' });
+    console.log('Expense deleted successfully');
+    res.status(200).json({ 
+      success: true,
+      message: 'Expense deleted successfully' 
+    });
   } catch (error) {
     console.error('Error deleting expense:', error);
-    next(createError(error.statusCode || 500, error.message || 'Error deleting expense'));
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Error deleting expense'
+    });
   }
 };
 
-// Approve or reject expense
+// Process expense (approve/reject)
 const processExpense = async (req, res, next) => {
   try {
     const { status, notes } = req.body;
@@ -320,11 +395,6 @@ const processExpense = async (req, res, next) => {
     const expense = await Expense.findById(req.params.id);
     if (!expense) {
       return next(createError(404, 'Expense not found'));
-    }
-
-    // Check if user has permission to approve/reject
-    if (req.user.role !== 'admin' && req.user.role !== 'manager') {
-      return next(createError(403, 'Not authorized to process expenses'));
     }
 
     // Can only process if status is Pending

@@ -298,6 +298,31 @@ const getLoanStats = async (req, res) => {
   }
 };
 
+// Delete office loan
+const deleteOfficeLoan = async (req, res) => {
+  try {
+    const loan = await OfficeLoan.findById(req.params.id);
+    if (!loan) {
+      throw createError(404, 'Office loan not found');
+    }
+
+    await OfficeLoan.findByIdAndDelete(req.params.id);
+    
+    res.status(200).json({
+      status: 'success',
+      message: 'Office loan deleted successfully'
+    });
+  } catch (error) {
+    console.error('Error deleting office loan:', error);
+    const statusCode = error.statusCode || 500;
+    const message = error.message || 'Internal Server Error';
+    res.status(statusCode).json({
+      status: 'error',
+      message
+    });
+  }
+};
+
 module.exports = {
   createOfficeLoan,
   getOfficeLoans,
@@ -305,5 +330,6 @@ module.exports = {
   updateOfficeLoan,
   processLoanRequest,
   recordPayment,
-  getLoanStats
+  getLoanStats,
+  deleteOfficeLoan
 };

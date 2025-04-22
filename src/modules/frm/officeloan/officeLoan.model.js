@@ -37,12 +37,12 @@ const officeLoanSchema = new mongoose.Schema({
   },
   requestedBy: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
+    ref: 'Employee',
     required: true
   },
   approvedBy: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User'
+    ref: 'Employee'
   },
   approvalDate: {
     type: Date
@@ -102,7 +102,7 @@ const officeLoanSchema = new mongoose.Schema({
     },
     recordedBy: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+      ref: 'Employee',
       required: true
     }
   }],
