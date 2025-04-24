@@ -1,5 +1,6 @@
 const Project = require('./project.model');
 const { validateProject } = require('./project.validation');
+const Task = require('./task/task.model');
 
 // Create new project
 exports.createProject = async (req, res) => {
@@ -69,16 +70,10 @@ exports.getProjects = async (req, res) => {
   try {
     const userId = req.user._id;
 
-    // Check if user has Admin role
-    // const isAdmin = req.user.role.some(role =>
-    //   (role.type === 'Admin' || (role.role_type && role.role_type.name === 'ERP System Administrator'))
-    // );
+    
 
     const isAdmin = req.user.role === 'ERP System Administrator';
-    // Check if user has Project Manager role
-    // const isProjectManager = req.user.role.some(role =>
-    //   (role.type === 'Project' || (role.role_type && role.role_type.name === 'Project Manager'))
-    // );
+   
     const isProjectManager = req.user.role === 'Project Manager';
     let query = {};
 

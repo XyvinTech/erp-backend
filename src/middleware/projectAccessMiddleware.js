@@ -33,9 +33,8 @@ exports.hasProjectAccess = async (req, res, next) => {
         }
 
         // Check if user has Admin role
-        const isAdmin = req.user.role.some(role =>
-            (role.type === 'Admin' || (role.role_type && role.role_type.name === 'ERP System Administrator'))
-        );
+    
+        const isAdmin = req.user.role === 'ERP System Administrator';
 
         // If user is admin, allow access
         if (isAdmin) {

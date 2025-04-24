@@ -53,6 +53,7 @@ function initializeRoutes(app, base_path) {
     app.use(`${base_path}/frm`, require('../modules/frm/routes'));
     app.use(`${base_path}/clients`, require('../modules/client/client.routes'));
     app.use(`${base_path}/projects`, require('../modules/project/project.routes'));
+    app.use(`${base_path}/tasks`, require('../modules/project/task/task.routes'));
 
 }
 module.exports = {
