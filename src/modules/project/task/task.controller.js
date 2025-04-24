@@ -80,6 +80,11 @@ exports.getProjectTasks = async (req, res) => {
         select: 'name description',
         model: 'Project'
       })
+      .populate({
+        path: 'comments.author',
+        select: 'firstName lastName email role',
+        model: 'Employee'
+      })
       .lean();
 
     console.log('Raw tasks before transform:', JSON.stringify(tasks, null, 2));
