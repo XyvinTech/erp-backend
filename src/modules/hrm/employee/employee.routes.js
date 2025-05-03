@@ -46,18 +46,19 @@ router.get('/:id',  getEmployeeById);
 router.post('/',  createEmployee);
 
 // Update employee - allow self update or admin
+// CORRECT IMPLEMENTATION
 router.route('/:id')
-  .put( (req, res, next) => {
+  .put((req, res, next) => {
     if (req.user._id.toString() === req.params.id) {
       return updateCurrentEmployee(req, res, next);
     }
-    return (req, res, () => updateEmployee(req, res, next));
+    return updateEmployee(req, res, next); // Directly call the function
   })
-  .patch( (req, res, next) => {
+  .patch((req, res, next) => {
     if (req.user._id.toString() === req.params.id) {
       return updateCurrentEmployee(req, res, next);
     }
-    return (req, res, () => updateEmployee(req, res, next));
+    return updateEmployee(req, res, next); // Directly call the function
   });
 
 // Update employee profile picture - allow self update or admin
