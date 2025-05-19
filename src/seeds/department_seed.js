@@ -37,78 +37,7 @@ const seedDepartments = async () => {
                 employeeCount: 0,
                 isActive: true
             },
-            {
-                name: 'Information Technology',
-                code: 'IT',
-                description: 'Manages IT infrastructure, software development, and technical support',
-                location: 'Headquarters - Floor 3',
-                budget: 750000,
-                employeeCount: 0,
-                isActive: true
-            },
-            {
-                name: 'Finance',
-                code: 'FIN',
-                description: 'Manages financial planning, accounting, budgeting, and financial reporting',
-                location: 'Headquarters - Floor 4',
-                budget: 450000,
-                employeeCount: 0,
-                isActive: true
-            },
-            {
-                name: 'Sales',
-                code: 'SALES',
-                description: 'Responsible for sales operations, customer acquisition, and revenue generation',
-                location: 'Headquarters - Floor 2',
-                budget: 650000,
-                employeeCount: 0,
-                isActive: true
-            },
-            {
-                name: 'Marketing',
-                code: 'MKT',
-                description: 'Manages brand development, marketing campaigns, and market research',
-                location: 'Headquarters - Floor 2',
-                budget: 400000,
-                employeeCount: 0,
-                isActive: true
-            },
-            {
-                name: 'Engineering',
-                code: 'ENG',
-                description: 'Responsible for product development, engineering, and technical innovation',
-                location: 'Tech Campus - Building A',
-                budget: 850000,
-                employeeCount: 0,
-                isActive: true
-            },
-            {
-                name: 'Quality Assurance',
-                code: 'QA',
-                description: 'Ensures product quality, testing, and compliance with standards',
-                location: 'Tech Campus - Building B',
-                budget: 300000,
-                employeeCount: 0,
-                isActive: true
-            },
-            {
-                name: 'Project Management',
-                code: 'PM',
-                description: 'Oversees project planning, execution, and delivery across the organization',
-                location: 'Headquarters - Floor 3',
-                budget: 400000,
-                employeeCount: 0,
-                isActive: true
-            },
-            {
-                name: 'Customer Support',
-                code: 'CS',
-                description: 'Provides customer service, technical support, and issue resolution',
-                location: 'Support Center - Downtown',
-                budget: 350000,
-                employeeCount: 0,
-                isActive: true
-            }
+           
         ];
 
         console.log('Attempting to create departments...');
